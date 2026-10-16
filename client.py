@@ -101,24 +101,34 @@ class FileTransferClient:
         self.is_connected = False
         self.username: Optional[str] = None
         self.user_id: Optional[str] = None
+        self.email: Optional[str] = None
 
-    def register(self, username: str, password: str = "password123") -> bool:
-        """Create new account with username and password; receives auto-generated unique User ID."""
+    def register(self, email_or_username: str, password: str = "password123", email: Optional[str] = None) -> bool:
+        """Create new account with email/username and password; receives auto-generated unique User ID."""
         if not self.is_connected or not self.sock:
             print("[-] Error: You must connect to the server first.")
             return False
 
+        if not email and "@" in email_or_username:
+            user_email = email_or_username
+            user_name = user_email.split("@")[0]
+        else:
+            user_email = email or f"{email_or_username}@network.edu"
+            user_name = email_or_username
+
         try:
             send_message(
                 self.sock,
-                {"command": CMD_REGISTER, "username": username, "password": password},
+                {"command": CMD_REGISTER, "email": user_email, "username": user_name, "password": password},
             )
             resp = recv_message(self.sock)
             if resp.get("status") == "OK":
                 data = resp.get("data", {})
-                self.username = data.get("username", username)
+                self.username = data.get("username", user_name)
                 self.user_id = data.get("user_id")
+                self.email = data.get("email", user_email)
                 print(f"[+] Account registered successfully!")
+                print(f"[+] Email: {self.email}")
                 print(f"[+] Username: {self.username}")
                 print(f"[+] Unique User ID: {self.user_id}")
                 return True
@@ -130,7 +140,7 @@ class FileTransferClient:
             return False
 
     def login(self, identifier: str, password: str = "password123") -> bool:
-        """Authenticate using either Username or unique User ID."""
+        """Authenticate using Email, unique User ID, or Username."""
         if not self.is_connected or not self.sock:
             print("[-] Error: You must connect to the server first.")
             return False
@@ -145,8 +155,9 @@ class FileTransferClient:
                 data = resp.get("data", {})
                 self.username = data.get("username", identifier)
                 self.user_id = data.get("user_id")
+                self.email = data.get("email")
                 print(f"[+] Logged in successfully!")
-                print(f"[+] Active User: {self.username} (User ID: {self.user_id})")
+                print(f"[+] Active User: {self.username} (Email: {self.email or 'N/A'}, Unique ID: {self.user_id})")
                 return True
             else:
                 print(f"[-] Login failed: {resp.get('message')}")

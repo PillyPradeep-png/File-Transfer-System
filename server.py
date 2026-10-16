@@ -305,27 +305,31 @@ class FileTransferServer:
     def _handle_register(
         self, client_socket: socket.socket, request: Dict[str, Any], addr_str: str
     ) -> Optional[Dict[str, str]]:
-        """Handle REGISTER command: create unique username and auto-generate unique User ID."""
+        """Handle REGISTER command: create account via email/username and auto-generate unique User ID."""
+        email = request.get("email", "").strip()
         username = request.get("username", "").strip()
         password = request.get("password", "password123").strip()
+        if not email and username:
+            email = f"{username}@network.edu" if "@" not in username else username
 
         try:
-            user_rec = user_manager.register(username, password)
+            user_rec = user_manager.register(email=email, password=password, username=username)
             clean_user = user_rec["username"]
             uid = user_rec["user_id"]
+            user_email = user_rec["email"]
 
             with self.users_lock:
                 self.active_users[clean_user] = addr_str
 
-            self.logger.info(f"[REGISTER] Created account for '{clean_user}' -> Assigned User ID: '{uid}' from {addr_str}")
+            self.logger.info(f"[REGISTER] Created account for '{user_email}' ('{clean_user}') -> Assigned Unique ID: '{uid}' from {addr_str}")
             send_message(
                 client_socket,
                 make_ok_response(
                     f"Account created successfully! Your unique User ID is {uid}.",
-                    data={"username": clean_user, "user_id": uid},
+                    data={"username": clean_user, "user_id": uid, "email": user_email},
                 ),
             )
-            return {"username": clean_user, "user_id": uid}
+            return {"username": clean_user, "user_id": uid, "email": user_email}
         except ValueError as err:
             self.logger.warning(f"[REGISTER REJECT] {err}")
             send_message(client_socket, make_error_response(str(err), code=400))
@@ -334,8 +338,8 @@ class FileTransferServer:
     def _handle_login(
         self, client_socket: socket.socket, request: Dict[str, Any], addr_str: str
     ) -> Optional[Dict[str, str]]:
-        """Handle LOGIN command: authenticate via either Username or User ID + password."""
-        identifier = request.get("identifier") or request.get("username") or ""
+        """Handle LOGIN command: authenticate via Email, User ID, or Username + password."""
+        identifier = request.get("identifier") or request.get("email") or request.get("username") or ""
         password = request.get("password", "").strip()
 
         user_rec = user_manager.authenticate(identifier, password)
@@ -343,27 +347,28 @@ class FileTransferServer:
             self.logger.warning(f"[LOGIN FAILED] Invalid credentials for identifier '{identifier}' from {addr_str}")
             send_message(
                 client_socket,
-                make_error_response("Invalid Username/User ID or incorrect password.", code=401),
+                make_error_response("Invalid Email/User ID or incorrect password.", code=401),
             )
             return None
 
         clean_user = user_rec["username"]
         uid = user_rec["user_id"]
+        user_email = user_rec["email"]
         with self.users_lock:
             self.active_users[clean_user] = addr_str
 
-        self.logger.info(f"[LOGIN SUCCESS] User '{clean_user}' ({uid}) authenticated from {addr_str}")
+        self.logger.info(f"[LOGIN SUCCESS] User '{user_email}' ('{clean_user}', {uid}) authenticated from {addr_str}")
         send_message(
             client_socket,
             make_ok_response(
                 f"Welcome back, {clean_user} ({uid})!",
-                data={"username": clean_user, "user_id": uid},
+                data={"username": clean_user, "user_id": uid, "email": user_email},
             ),
         )
-        return {"username": clean_user, "user_id": uid}
+        return {"username": clean_user, "user_id": uid, "email": user_email}
 
     def _handle_users(self, client_socket: socket.socket, addr_str: str) -> None:
-        """Handle USERS command: return list of registered users with User IDs and online status."""
+        """Handle USERS command: return list of registered users with User IDs, Emails, and online status."""
         all_users = user_manager.list_users()
         with self.users_lock:
             online_names = set(self.active_users.keys())
@@ -372,6 +377,7 @@ class FileTransferServer:
             {
                 "user_id": u["user_id"],
                 "username": u["username"],
+                "email": u.get("email", f"{u['username']}@network.edu"),
                 "is_online": u["username"].lower() in [o.lower() for o in online_names],
             }
             for u in all_users

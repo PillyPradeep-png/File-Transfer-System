@@ -898,23 +898,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         </div>
         <div class="brand-titles">
           <h1>Network File Transfer</h1>
-          <p>Apple iOS Frosted Glass &bull; Dual Addressing by Username or User ID</p>
+          <p>Apple iOS Frosted Glass &bull; Email Login &bull; Unique ID Addressing</p>
         </div>
       </div>
 
       <div class="header-user-badge">
         <div class="user-avatar" id="header-avatar">A</div>
         <div>
+          <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:1px;" id="header-email">alice@network.edu</div>
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="user-meta-name" id="header-username">alice</span>
-            <span class="user-uid-pill" id="header-uid" title="Click to copy User ID" onclick="copyUid()" style="cursor:pointer;">UID-1001 📋</span>
-          </div>
-          <div style="font-size:0.72rem; color:var(--ios-green); font-weight:700; margin-top:2px;">
-            ● Authenticated Session Active
+            <span class="user-uid-pill" id="header-uid" title="Click to copy Unique ID" onclick="copyUid()" style="cursor:pointer;">UID-1001 📋</span>
           </div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="openAuthModal()" style="margin-left:8px;">
-          Switch / Log In
+          Log In / Switch
         </button>
       </div>
     </header>
@@ -926,24 +924,26 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
 
     <div class="widgets-grid">
-      <!-- WIDGET 1: USER IDENTITY -->
+      <!-- WIDGET 1: USER IDENTITY & UNIQUE ID -->
       <div class="widget-card">
         <div class="widget-header">
-          <span class="widget-label">Active Account</span>
+          <span class="widget-label">Your Unique ID</span>
           <div class="widget-icon-pill widget-icon-blue">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
         </div>
         <div>
-          <div class="widget-val-lg" id="widget-username">alice</div>
-          <div class="widget-subtext" style="display:flex; align-items:center; gap:6px;">
-            <span>ID:</span>
-            <span class="user-uid-pill" id="widget-uid">UID-1001</span>
+          <div class="widget-val-lg" id="widget-uid" style="color:var(--ios-blue); font-family:var(--font-mono); letter-spacing:-0.5px;">UID-1001</div>
+          <div class="widget-subtext" style="margin-top:4px;">
+            <span style="font-weight:600; color:var(--text-secondary);" id="widget-email">alice@network.edu</span>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+            Username: <strong id="widget-username">alice</strong>
           </div>
         </div>
         <div style="margin-top:12px; display:flex; gap:6px;">
-          <button class="btn btn-secondary btn-sm" style="flex:1; font-size:0.72rem;" onclick="copyUid()">Copy UID</button>
-          <button class="btn btn-secondary btn-sm" style="flex:1; font-size:0.72rem;" onclick="openAuthModal()">Switch</button>
+          <button class="btn btn-primary btn-sm" style="flex:1; font-size:0.75rem;" onclick="copyUid()">📋 Copy UID</button>
+          <button class="btn btn-secondary btn-sm" style="flex:1; font-size:0.75rem;" onclick="openAuthModal()">Switch</button>
         </div>
       </div>
 
@@ -990,18 +990,18 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       <!-- WIDGET 4: SPEED-DIAL CONTACTS WIDGET -->
       <div class="widget-card">
         <div class="widget-header">
-          <span class="widget-label">Quick Contacts</span>
+          <span class="widget-label">Quick Contacts (Unique IDs)</span>
           <div class="widget-icon-pill widget-icon-purple">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
         </div>
-        <div class="widget-subtext">Click to target for file dispatch:</div>
+        <div class="widget-subtext">Click to fill recipient's Unique ID:</div>
         <div class="widget-contacts-row" id="widget-speed-dial">
-          <span class="widget-contact-chip" onclick="quickSelectRecipient('bob')">👤 Bob</span>
-          <span class="widget-contact-chip" onclick="quickSelectRecipient('alice')">👤 Alice</span>
+          <span class="widget-contact-chip" onclick="quickSelectRecipient('UID-1002')">👤 UID-1002 (Bob)</span>
+          <span class="widget-contact-chip" onclick="quickSelectRecipient('UID-1001')">👤 UID-1001 (Alice)</span>
         </div>
         <div style="font-size:0.7rem; color:var(--text-muted); margin-top:12px;">
-          Send using either Username or User ID
+          Direct routing powered by permanent Unique IDs
         </div>
       </div>
     </div>
@@ -1039,21 +1039,20 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <div class="card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Transmit File to Peer
+              Transmit File by Unique ID
             </h2>
           </div>
 
           <div style="background:var(--ios-blue-light); border:1px solid rgba(0, 122, 255, 0.2); border-radius:14px; padding:12px 16px; margin-bottom:18px; font-size:0.85rem;">
-            Sending from: <strong style="color:var(--ios-blue);" id="sender-display-name">alice</strong>
-            <span class="user-uid-pill" id="sender-display-uid" style="margin-left:8px;">UID-1001</span>
+            Sending from: <strong style="color:var(--ios-blue);" id="sender-display-email">alice@network.edu</strong> (<span id="sender-display-name">alice</span>) &bull; Your Unique ID: <span class="user-uid-pill" id="sender-display-uid" onclick="copyUid()" title="Click to copy UID" style="cursor:pointer;">UID-1001 📋</span>
           </div>
 
           <form id="direct-send-form" onsubmit="handleDirectSend(event)">
             <div class="form-group">
-              <label>Target Recipient (Enter Username OR User ID)</label>
-              <input type="text" class="input-control" id="recipient-input" placeholder="e.g. bob or UID-1002" required>
+              <label>Target Recipient Unique ID <span style="font-size:0.75rem; font-weight:400; color:var(--ios-blue);">(Required for delivery)</span></label>
+              <input type="text" class="input-control" id="recipient-input" placeholder="Enter recipient Unique ID (e.g. UID-1002)" required>
               <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
-                Directory Directory (Click to auto-fill):
+                Directory (Click to auto-fill recipient Unique ID):
               </div>
               <div class="recipient-pills" id="directory-pills">
                 <!-- Injected dynamically -->
@@ -1078,32 +1077,34 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           </form>
         </div>
 
-        <!-- Architecture & Dual Addressing Guide Card -->
+        <!-- Architecture & Unique ID Transfer Guide Card -->
         <div class="card">
           <div class="card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Dual Addressing &amp; Receipts
+              Email Login &amp; Unique ID Routing
             </h2>
           </div>
 
           <div style="font-size:0.85rem; line-height:1.75; color:var(--text-secondary);">
             <p style="margin-bottom:14px;">
-              <strong style="color:var(--text-primary);">1. Dual Addressing (Username or User ID):</strong> Senders can target recipients using either their chosen Username (e.g. <code style="color:var(--ios-blue); font-weight:700;">bob</code>) or auto-generated User ID (e.g. <code style="color:var(--ios-blue); font-weight:700;">UID-1002</code>).
+              <strong style="color:var(--text-primary);">1. Email Registration &amp; Auto Unique ID:</strong> When creating an account with your email, the server immediately generates a permanent, sequential <strong style="color:var(--ios-blue);">Unique ID (e.g. UID-1002)</strong>.
             </p>
             <p style="margin-bottom:14px;">
-              <strong style="color:#b45309;">2. Level 1 Receipt (Server Mailbox ACK):</strong> The sender receives an immediate confirmation that the file reached the server: <span class="status-badge status-pending">[PENDING: Waiting for recipient]</span>.
+              <strong style="color:var(--text-primary);">2. Addressing Files by Unique ID:</strong> Enter the recipient's Unique ID in the transfer box. The TCP server routes the packet directly to the recipient's secure inbox.
             </p>
             <p style="margin-bottom:14px;">
-              <strong style="color:#15803d;">3. Level 2 Receipt (Download Confirmed):</strong> When Bob downloads the file from his inbox, the server records the exact timestamp and confirms delivery to Alice: <span class="status-badge status-confirmed">[DELIVERED &amp; CONFIRMED]</span>.
+              <strong style="color:#b45309;">3. Level 1 Receipt (Server Mailbox ACK):</strong> The sender receives an immediate confirmation that the file reached the server: <span class="status-badge status-pending">[PENDING: Waiting for recipient]</span>.
+            </p>
+            <p style="margin-bottom:14px;">
+              <strong style="color:#15803d;">4. Level 2 Receipt (Download Confirmed):</strong> When the recipient downloads the file, the server records the exact timestamp and confirms delivery to the sender: <span class="status-badge status-confirmed">[DELIVERED &amp; CONFIRMED]</span>.
             </p>
             <div style="background:rgba(255,255,255,0.7); border:1px solid rgba(0,0,0,0.06); padding:12px; border-radius:14px; margin-top:8px;">
-              <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Pre-Seeded Test Accounts:</span>
-              <div style="margin-top:6px; font-size:0.8rem; display:flex; gap:14px;">
-                <div>👤 <strong>alice</strong> (<code style="color:var(--ios-blue);">UID-1001</code>)</div>
-                <div>👤 <strong>bob</strong> (<code style="color:var(--ios-blue);">UID-1002</code>)</div>
+              <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Pre-Seeded Demo Accounts:</span>
+              <div style="margin-top:6px; font-size:0.8rem; display:flex; flex-direction:column; gap:4px;">
+                <div>👤 <strong>alice@network.edu</strong> &bull; Unique ID: <code style="color:var(--ios-blue); font-weight:700;">UID-1001</code> &bull; Pass: <code>password123</code></div>
+                <div>👤 <strong>bob@network.edu</strong> &bull; Unique ID: <code style="color:var(--ios-blue); font-weight:700;">UID-1002</code> &bull; Pass: <code>password123</code></div>
               </div>
-              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Default Password: <code>password123</code></div>
             </div>
           </div>
         </div>
@@ -1129,7 +1130,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <table>
             <thead>
               <tr>
-                <th>Sender (Username &amp; User ID)</th>
+                <th>Sender Unique ID</th>
+                <th>Sender (Email / Username)</th>
                 <th>Filename</th>
                 <th>Size</th>
                 <th>Sent At</th>
@@ -1138,7 +1140,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="inbox-tbody">
-              <tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:36px;">Loading inbox...</td></tr>
+              <tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:36px;">Loading inbox...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1164,7 +1166,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <table>
             <thead>
               <tr>
-                <th>Recipient (Username &amp; User ID)</th>
+                <th>Recipient Unique ID</th>
+                <th>Recipient (Email / Username)</th>
                 <th>Filename</th>
                 <th>Size</th>
                 <th>Sent Timestamp</th>
@@ -1172,7 +1175,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="outbox-tbody">
-              <tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:36px;">Loading outbox...</td></tr>
+              <tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:36px;">Loading outbox...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1234,21 +1237,24 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   <!-- ========================================================
        iOS FROSTED SHEET MODAL (AUTHENTICATION)
        ======================================================== -->
+  <!-- ========================================================
+       iOS FROSTED SHEET MODAL (AUTHENTICATION)
+       ======================================================== -->
   <div class="modal-overlay" id="auth-modal">
     <div class="modal-card">
       <button class="modal-close" onclick="closeAuthModal()">&times;</button>
       
       <div class="auth-tab-bar">
-        <button class="auth-tab-btn active" id="tab-auth-login" onclick="switchAuthTab('login')">Log In</button>
-        <button class="auth-tab-btn" id="tab-auth-register" onclick="switchAuthTab('register')">Create Account</button>
+        <button class="auth-tab-btn active" id="tab-auth-login" onclick="switchAuthTab('login')">Log In with Email</button>
+        <button class="auth-tab-btn" id="tab-auth-register" onclick="switchAuthTab('register')">Create Account (Get UID)</button>
       </div>
 
       <!-- VIEW: LOGIN -->
       <div class="auth-view active" id="view-auth-login">
         <form onsubmit="handleAuthLogin(event)">
           <div class="form-group">
-            <label>Username or User ID</label>
-            <input type="text" class="input-control" id="login-identifier" placeholder="e.g. alice or UID-1001" required>
+            <label>Email Address or Unique ID</label>
+            <input type="text" class="input-control" id="login-identifier" placeholder="e.g. alice@network.edu or UID-1001" required>
           </div>
           <div class="form-group">
             <label>Password</label>
@@ -1260,13 +1266,15 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         </form>
 
         <div style="margin-top:22px; padding-top:16px; border-top:1px solid rgba(0,0,0,0.08);">
-          <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:8px;">Instant Demo Accounts:</div>
-          <div style="display:flex; gap:10px;">
-            <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('alice', 'password123'); closeAuthModal();">
-              👤 Alice (UID-1001)
+          <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:8px;">Instant Demo Logins:</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="btn btn-secondary btn-sm" style="text-align:left; justify-content:space-between; display:flex;" onclick="quickLoginDemo('alice@network.edu', 'password123'); closeAuthModal();">
+              <span>👤 <strong>alice@network.edu</strong> (Alice)</span>
+              <span class="user-uid-pill">UID-1001</span>
             </button>
-            <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('bob', 'password123'); closeAuthModal();">
-              👤 Bob (UID-1002)
+            <button class="btn btn-secondary btn-sm" style="text-align:left; justify-content:space-between; display:flex;" onclick="quickLoginDemo('bob@network.edu', 'password123'); closeAuthModal();">
+              <span>👤 <strong>bob@network.edu</strong> (Bob)</span>
+              <span class="user-uid-pill">UID-1002</span>
             </button>
           </div>
         </div>
@@ -1274,20 +1282,25 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
       <!-- VIEW: REGISTER -->
       <div class="auth-view" id="view-auth-register">
-        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.5;">
-          Enter your unique username. An automatic sequential <strong style="color:var(--ios-blue);">User ID (e.g. UID-1003)</strong> will be generated immediately for you.
+        <div style="background:var(--ios-blue-light); border:1px solid rgba(0,122,255,0.2); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.8rem; line-height:1.5;">
+          🔑 <strong>Automatic Unique ID Generation:</strong><br>
+          Register with your email to automatically generate a permanent <strong style="color:var(--ios-blue);">Unique ID (e.g. UID-1003)</strong>. <strong>This Unique ID is used for sending and receiving files!</strong>
         </div>
         <form onsubmit="handleAuthRegister(event)">
           <div class="form-group">
-            <label>Desired Unique Username</label>
-            <input type="text" class="input-control" id="reg-username" placeholder="e.g. charlie" required>
+            <label>Email Address <span style="color:var(--ios-red);">*</span></label>
+            <input type="email" class="input-control" id="reg-email" placeholder="e.g. charlie@network.edu" required>
           </div>
           <div class="form-group">
-            <label>Password</label>
+            <label>Display Username (Optional)</label>
+            <input type="text" class="input-control" id="reg-username" placeholder="e.g. charlie (defaults to email prefix)">
+          </div>
+          <div class="form-group">
+            <label>Password <span style="color:var(--ios-red);">*</span></label>
             <input type="password" class="input-control" id="reg-password" placeholder="At least 4 characters" required>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
-            Create Account &amp; Generate User ID
+            Create Account &amp; Generate Unique ID
           </button>
         </form>
       </div>
@@ -1299,6 +1312,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
   <script>
     // Current authenticated user state
     let currentUser = {
+      email: 'alice@network.edu',
       username: 'alice',
       user_id: 'UID-1001'
     };
@@ -1322,43 +1336,47 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     function copyUid() {
       navigator.clipboard.writeText(currentUser.user_id).then(() => {
-        showToast(`Copied ${currentUser.user_id} to clipboard!`);
+        showToast(`Copied Unique ID: ${currentUser.user_id} to clipboard!`);
       });
     }
 
     function updateActiveUserUI() {
       // Header
-      document.getElementById('header-avatar').innerText = currentUser.username.charAt(0).toUpperCase();
+      const displayName = currentUser.username || currentUser.email;
+      document.getElementById('header-avatar').innerText = displayName.charAt(0).toUpperCase();
       document.getElementById('header-username').innerText = currentUser.username;
+      document.getElementById('header-email').innerText = currentUser.email;
       document.getElementById('header-uid').innerText = currentUser.user_id + ' 📋';
 
       // Widgets
-      document.getElementById('widget-username').innerText = currentUser.username;
       document.getElementById('widget-uid').innerText = currentUser.user_id;
+      document.getElementById('widget-email').innerText = currentUser.email;
+      document.getElementById('widget-username').innerText = currentUser.username;
 
       // Transfer card
       document.getElementById('sender-display-name').innerText = currentUser.username;
-      document.getElementById('sender-display-uid').innerText = currentUser.user_id;
+      document.getElementById('sender-display-email').innerText = currentUser.email;
+      document.getElementById('sender-display-uid').innerText = currentUser.user_id + ' 📋';
 
       // Dynamic Island text
-      document.getElementById('island-text').innerText = `📡 ${currentUser.username} (${currentUser.user_id}) Connected &bull; TCP Socket Ready`;
+      document.getElementById('island-text').innerText = `📡 Logged in as ${currentUser.email} • Unique ID: ${currentUser.user_id} • Ready for Transfers`;
 
       fetchDirectoryUsers();
       fetchInbox();
       fetchOutbox();
     }
 
-    async function quickLoginDemo(username, password) {
+    async function quickLoginDemo(identifier, password) {
       try {
         const res = await fetch('/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: username, password: password })
+          body: JSON.stringify({ identifier: identifier, password: password })
         });
         const data = await res.json();
         if (res.ok && data.status === 'OK') {
           currentUser = data.user;
-          showToast(`Logged in as '${currentUser.username}' (${currentUser.user_id})`);
+          showToast(`Logged in as '${currentUser.email}' (Unique ID: ${currentUser.user_id})`);
           updateActiveUserUI();
         } else {
           showToast(data.message || 'Login failed', true);
@@ -1368,9 +1386,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       }
     }
 
-    function quickSelectRecipient(recipientName) {
-      document.getElementById('recipient-input').value = recipientName;
-      showToast(`Selected '${recipientName}' as recipient!`);
+    function quickSelectRecipient(recipientUid) {
+      document.getElementById('recipient-input').value = recipientUid;
+      showToast(`Selected recipient Unique ID: '${recipientUid}'!`);
     }
 
     function openAuthModal(defaultTab = 'login') {
@@ -1403,7 +1421,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         const data = await res.json();
         if (res.ok && data.status === 'OK') {
           currentUser = data.user;
-          showToast(`Welcome back, ${currentUser.username} (${currentUser.user_id})!`);
+          showToast(`Welcome! Logged in as ${currentUser.email} (${currentUser.user_id})!`);
           updateActiveUserUI();
           closeAuthModal();
         } else {
@@ -1416,6 +1434,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     async function handleAuthRegister(e) {
       e.preventDefault();
+      const email = document.getElementById('reg-email').value.trim();
       const username = document.getElementById('reg-username').value.trim();
       const password = document.getElementById('reg-password').value.trim();
 
@@ -1423,12 +1442,13 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         const res = await fetch('/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ email, username, password })
         });
         const data = await res.json();
         if (res.ok && data.status === 'OK') {
           currentUser = data.user;
-          showToast(`Account created! Assigned User ID: ${currentUser.user_id}`);
+          showToast(`Account created! Assigned Unique ID: ${currentUser.user_id}`);
+          alert(`🎉 Account Successfully Created!\n\nEmail: ${currentUser.email}\nYour UNIQUE ID: ${currentUser.user_id}\n\nNotice: This UNIQUE ID is what other users will use to send files directly to you!`);
           updateActiveUserUI();
           closeAuthModal();
         } else {
@@ -1454,27 +1474,27 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         }
 
         data.users.forEach(u => {
-          if (u.username.toLowerCase() === currentUser.username.toLowerCase()) return;
+          if (u.user_id === currentUser.user_id || u.username.toLowerCase() === currentUser.username.toLowerCase()) return;
           
-          // Form suggestion pill
+          // Form suggestion pill - shows UID as primary and user/email as details
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'pill-btn';
-          btn.innerHTML = `👤 <strong>${u.username}</strong> <span class="pill-uid">${u.user_id}</span>`;
+          btn.innerHTML = `👤 <strong style="color:var(--ios-blue);">${u.user_id}</strong> <span class="pill-uid">${u.username} (${u.email})</span>`;
           btn.onclick = () => {
-            document.getElementById('recipient-input').value = u.username;
-            showToast(`Recipient set to '${u.username}' (${u.user_id})`);
+            document.getElementById('recipient-input').value = u.user_id;
+            showToast(`Recipient set to Unique ID: '${u.user_id}' (${u.username})`);
           };
           pillsContainer.appendChild(btn);
 
           // Widget Speed-Dial chip
           const chip = document.createElement('span');
           chip.className = 'widget-contact-chip';
-          chip.innerHTML = `👤 ${u.username}`;
+          chip.innerHTML = `👤 <strong>${u.user_id}</strong> (${u.username})`;
           chip.onclick = () => {
-            document.getElementById('recipient-input').value = u.username;
+            document.getElementById('recipient-input').value = u.user_id;
             switchTab('two-way');
-            showToast(`Target set to '${u.username}'!`);
+            showToast(`Target set to Unique ID: '${u.user_id}'!`);
           };
           speedDialContainer.appendChild(chip);
         });
@@ -1503,13 +1523,13 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     // Direct Two-Way File Send
     async function handleDirectSend(e) {
       e.preventDefault();
-      const sender = currentUser.username;
+      const sender = currentUser.user_id;
       const recipient = document.getElementById('recipient-input').value.trim();
       const fileInput = document.getElementById('direct-file-input');
       const btn = document.getElementById('btn-direct-send');
 
       if (!recipient) {
-        showToast('Please enter a recipient Username or User ID.', true);
+        showToast('Please enter a recipient Unique ID.', true);
         return;
       }
       if (fileInput.files.length === 0) {
@@ -1519,10 +1539,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
       const file = fileInput.files[0];
       btn.disabled = true;
-      btn.innerText = `Transmitting '${file.name}' to ${recipient}...`;
+      btn.innerText = `Transmitting '${file.name}' to Unique ID ${recipient}...`;
 
       // Update island
-      document.getElementById('island-text').innerText = `📡 Transmitting '${file.name}' (${formatBytes(file.size)}) to ${recipient}...`;
+      document.getElementById('island-text').innerText = `📡 Transmitting '${file.name}' (${formatBytes(file.size)}) to Unique ID ${recipient}...`;
 
       const formData = new FormData();
       formData.append('sender', sender);
@@ -1536,10 +1556,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         });
         const data = await res.json();
         if (res.ok && data.status === 'OK') {
-          showToast(`File sent! Queued on server for '${recipient}'. Level 1 Receipt recorded!`);
+          showToast(`File sent! Queued on server for Unique ID '${recipient}'. Level 1 Receipt recorded!`);
           document.getElementById('direct-send-form').reset();
           document.getElementById('direct-file-label').innerText = 'Click or Drag & Drop file here';
-          document.getElementById('island-text').innerText = `✓ '${file.name}' Queued on Server for ${recipient} &bull; Delivery Pending`;
+          document.getElementById('island-text').innerText = `✓ '${file.name}' Queued on Server for Unique ID ${recipient} &bull; Delivery Pending`;
           fetchOutbox();
           fetchLogs();
         } else {
@@ -1556,7 +1576,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     // Fetch Inbox
     async function fetchInbox() {
-      const user = currentUser.username;
+      const user = currentUser.user_id;
       try {
         const res = await fetch(`/api/inbox?user=${encodeURIComponent(user)}`);
         const data = await res.json();
@@ -1568,7 +1588,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         document.getElementById('widget-inbox-count').innerText = inbox.length;
 
         if (inbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:36px;">No incoming files for '${user}' (${currentUser.user_id})</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:36px;">No incoming files for '${currentUser.email}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -1576,12 +1596,14 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           const tr = document.createElement('tr');
           const isPending = item.status === 'PENDING_RECEIPT';
           const badgeClass = isPending ? 'status-pending' : 'status-confirmed';
-          const badgeText = isPending ? 'NEW / UNREAD' : 'RECEIVED';
+          const badgeText = isPending ? 'NEW / WAITING' : 'DOWNLOADED';
 
           tr.innerHTML = `
             <td>
-              <strong style="color:var(--text-primary); font-size:0.9rem;">${item.sender}</strong>
-              <span class="user-uid-pill" style="margin-left:6px;">${item.sender_uid || 'UID-????'}</span>
+              <span class="user-uid-pill" style="font-weight:700; font-size:0.8rem;">${item.sender_uid || 'UID-????'}</span>
+            </td>
+            <td>
+              <strong style="color:var(--text-primary); font-size:0.88rem;">${item.sender}</strong>
             </td>
             <td><strong>${item.filename}</strong></td>
             <td style="font-family:var(--font-mono); font-size:0.8rem;">${formatBytes(item.size)}</td>
@@ -1602,7 +1624,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     // Fetch Outbox
     async function fetchOutbox() {
-      const user = currentUser.username;
+      const user = currentUser.user_id;
       try {
         const res = await fetch(`/api/outbox?user=${encodeURIComponent(user)}`);
         const data = await res.json();
@@ -1614,7 +1636,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         document.getElementById('widget-outbox-count').innerText = outbox.length;
 
         if (outbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:36px;">No sent files from '${user}' (${currentUser.user_id})</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:36px;">No sent files from '${currentUser.email}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -1623,13 +1645,15 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           const isConfirmed = item.status === 'RECEIVED_BY_USER';
           const badgeClass = isConfirmed ? 'status-confirmed' : 'status-pending';
           const badgeText = isConfirmed 
-            ? `DELIVERED & CONFIRMED (Received at ${item.received_at})` 
-            : `SENT TO SERVER (Waiting for ${item.recipient} to download)`;
+            ? `DELIVERED & CONFIRMED (Downloaded at ${item.received_at})` 
+            : `WAITING FOR RECIPIENT (${item.recipient_uid || item.recipient})`;
 
           tr.innerHTML = `
             <td>
-              <strong style="color:var(--text-primary); font-size:0.9rem;">${item.recipient}</strong>
-              <span class="user-uid-pill" style="margin-left:6px;">${item.recipient_uid || 'UID-????'}</span>
+              <span class="user-uid-pill" style="font-weight:700; font-size:0.8rem;">${item.recipient_uid || 'UID-????'}</span>
+            </td>
+            <td>
+              <strong style="color:var(--text-primary); font-size:0.88rem;">${item.recipient}</strong>
             </td>
             <td><strong>${item.filename}</strong></td>
             <td style="font-family:var(--font-mono); font-size:0.8rem;">${formatBytes(item.size)}</td>
@@ -1905,7 +1929,7 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
             password = data.get("password", "").strip()
             if not identifier or not password:
                 self._send_json(
-                    {"status": "ERROR", "message": "Username/User ID and password are required."},
+                    {"status": "ERROR", "message": "Email/Unique ID and password are required."},
                     status=400,
                 )
                 return
@@ -1913,7 +1937,7 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
             user_rec = user_manager.authenticate(identifier, password)
             if not user_rec:
                 self._send_json(
-                    {"status": "ERROR", "message": "Invalid Username/User ID or incorrect password."},
+                    {"status": "ERROR", "message": "Invalid Email/Unique ID or incorrect password."},
                     status=401,
                 )
                 return
@@ -1930,17 +1954,24 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
                 self._send_json({"status": "ERROR", "message": "Invalid JSON payload"}, status=400)
                 return
 
-            username = data.get("username", "").strip()
+            email = data.get("email", "").strip()
+            username = data.get("username", "").strip() or None
             password = data.get("password", "").strip()
-            if not username or not password:
+
+            # Fallback if email was provided in username field
+            if not email and username and "@" in username:
+                email = username
+                username = None
+
+            if not email or not password:
                 self._send_json(
-                    {"status": "ERROR", "message": "Username and password are required."},
+                    {"status": "ERROR", "message": "Email address and password are required."},
                     status=400,
                 )
                 return
 
             try:
-                user_rec = user_manager.register(username, password)
+                user_rec = user_manager.register(email=email, password=password, username=username)
                 self._send_json({"status": "OK", "user": user_rec})
             except ValueError as err:
                 self._send_json({"status": "ERROR", "message": str(err)}, status=400)

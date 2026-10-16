@@ -467,49 +467,59 @@ class TestUserAccountsAndTwoWayTransfer(unittest.TestCase):
         self.alice_dir.cleanup()
         self.bob_dir.cleanup()
 
-    def test_preseeded_dummy_accounts_and_login_by_uid_or_username(self) -> None:
-        """Verify pre-seeded dummy accounts Alice (UID-1001) and Bob (UID-1002) can login by UID or Username."""
+    def test_preseeded_dummy_accounts_and_login_by_email_uid_or_username(self) -> None:
+        """Verify pre-seeded dummy accounts Alice and Bob can login by Email, UID, or Username."""
         client = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=self.alice_path)
         self.assertTrue(client.connect())
 
-        # 1. Login with username "alice"
-        self.assertTrue(client.login("alice", "password123"))
+        # 1. Login with email "alice@network.edu"
+        self.assertTrue(client.login("alice@network.edu", "password123"))
         self.assertEqual(client.username, "alice")
         self.assertEqual(client.user_id, "UID-1001")
+        self.assertEqual(client.email, "alice@network.edu")
 
         # 2. Login with user ID "UID-1002" (Bob)
         self.assertTrue(client.login("UID-1002", "password123"))
         self.assertEqual(client.username, "bob")
         self.assertEqual(client.user_id, "UID-1002")
+        self.assertEqual(client.email, "bob@network.edu")
 
-        # 3. Invalid password fails
-        self.assertFalse(client.login("alice", "wrong_pass"))
+        # 3. Login with username "bob"
+        self.assertTrue(client.login("bob", "password123"))
+        self.assertEqual(client.user_id, "UID-1002")
 
-        # 4. Non-existent user fails
-        self.assertFalse(client.login("non_existent_user", "password123"))
+        # 4. Invalid password fails
+        self.assertFalse(client.login("alice@network.edu", "wrong_pass"))
+
+        # 5. Non-existent user fails
+        self.assertFalse(client.login("nobody@network.edu", "password123"))
 
         client.disconnect()
 
-    def test_user_registration_auto_generates_unique_user_id(self) -> None:
-        """Verify registration generates an automatic unique sequential User ID and enforces unique username."""
+    def test_user_registration_with_email_auto_generates_unique_id(self) -> None:
+        """Verify registering with an email address auto-generates a Unique ID (UID-XXXX)."""
         client = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=self.alice_path)
         self.assertTrue(client.connect())
 
-        # Register new unique user
-        uname = f"charlie_{int(time.time() * 1000) % 100000}"
-        ok = client.register(uname, "pass1234")
+        unique_suffix = int(time.time() * 1000) % 100000
+        email = f"charlie_{unique_suffix}@network.edu"
+        
+        ok = client.register(email_or_username=email, password="pass1234", email=email)
         self.assertTrue(ok)
-        self.assertEqual(client.username, uname)
         self.assertTrue(client.user_id.startswith("UID-"))
+        self.assertEqual(client.email, email)
         charlie_uid = client.user_id
 
-        # Verify user can now log in using the auto-generated User ID
-        self.assertTrue(client.login(charlie_uid, "pass1234"))
-        self.assertEqual(client.username, uname)
+        # Verify login via Email works
+        self.assertTrue(client.login(email, "pass1234"))
+        self.assertEqual(client.user_id, charlie_uid)
 
-        # Duplicate username registration must be rejected
-        self.assertFalse(client.register(uname, "pass1234"))
-        self.assertFalse(client.register(uname.upper(), "pass1234"))
+        # Verify login via the generated Unique ID works
+        self.assertTrue(client.login(charlie_uid, "pass1234"))
+        self.assertEqual(client.email, email)
+
+        # Duplicate email registration must be rejected
+        self.assertFalse(client.register(email, "pass1234"))
 
         client.disconnect()
 
@@ -524,10 +534,10 @@ class TestUserAccountsAndTwoWayTransfer(unittest.TestCase):
         self.assertTrue(alice_client.connect())
         self.assertTrue(bob_client.connect())
 
-        self.assertTrue(alice_client.login("alice", "password123"))
-        self.assertTrue(bob_client.login("bob", "password123"))
+        self.assertTrue(alice_client.login("alice@network.edu", "password123"))
+        self.assertTrue(bob_client.login("bob@network.edu", "password123"))
 
-        # Step 1: Alice sends a document addressed to Bob's User ID: "UID-1002"
+        # Step 1: Alice sends a document addressed to Bob's Unique ID: "UID-1002"
         alice_file = self.alice_path / "alice_project_report.txt"
         alice_content = "Confidential OS Project Report from Alice to Bob UID-1002\n"
         alice_file.write_text(alice_content, encoding="utf-8")
@@ -571,17 +581,17 @@ class TestUserAccountsAndTwoWayTransfer(unittest.TestCase):
         self.assertEqual(updated_outbox[0]["status"], "RECEIVED_BY_USER")
         self.assertIsNotNone(updated_outbox[0]["received_at"])
 
-        # Step 4: Two-way reply: Bob sends a response addressed to Alice by Username: "alice"
+        # Step 4: Two-way reply: Bob sends a response addressed to Alice's Unique ID: "UID-1001"
         bob_reply = self.bob_path / "bob_review_feedback.txt"
         bob_content = "Feedback received and approved by Bob!\n"
         bob_reply.write_text(bob_content, encoding="utf-8")
 
         reply_ok = bob_client.send_file_to_user(
-            recipient="alice",
+            recipient="UID-1001",
             local_path_str=str(bob_reply),
             show_progress=False,
         )
-        self.assertTrue(reply_ok, "Bob sending to 'alice' failed")
+        self.assertTrue(reply_ok, "Bob sending to UID-1001 failed")
 
         # Alice checks inbox and receives reply
         alice_inbox = alice_client.view_inbox()
