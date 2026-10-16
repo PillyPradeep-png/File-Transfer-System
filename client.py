@@ -24,9 +24,17 @@ from config import (
 )
 from protocol import (
     CMD_DOWNLOAD,
+    CMD_INBOX,
     CMD_LIST,
+    CMD_OUTBOX,
     CMD_QUIT,
+    CMD_RECEIVE_INBOX,
+    CMD_REGISTER,
+    CMD_SEND_TO,
     CMD_UPLOAD,
+    CMD_USERS,
+    DELIVERY_CONFIRMED,
+    DELIVERY_PENDING,
     ConnectionClosedError,
     ProtocolError,
     make_error_response,
@@ -90,7 +98,256 @@ class FileTransferClient:
         self.download_dir = Path(download_dir).resolve()
         self.sock: Optional[socket.socket] = None
         self.is_connected = False
-        self.connected_time: Optional[float] = None
+        self.username: Optional[str] = None
+
+    def register(self, username: str) -> bool:
+        """Register client under a given username for direct two-way transfers."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return False
+
+        try:
+            send_message(self.sock, {"command": CMD_REGISTER, "username": username})
+            resp = recv_message(self.sock)
+            if resp.get("status") == "OK":
+                self.username = resp.get("data", {}).get("username", username)
+                print(f"[+] Successfully registered as '{self.username}' on the network.")
+                return True
+            else:
+                print(f"[-] Registration failed: {resp.get('message')}")
+                return False
+        except Exception as err:
+            print(f"[-] Registration error: {err}")
+            return False
+
+    def list_online_users(self) -> Optional[List[str]]:
+        """Query and display list of currently active users."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return None
+
+        try:
+            send_message(self.sock, {"command": CMD_USERS})
+            resp = recv_message(self.sock)
+            if resp.get("status") != "OK":
+                print(f"[-] Error: {resp.get('message')}")
+                return None
+
+            users = resp.get("data", {}).get("users", [])
+            print("\n" + "=" * 40)
+            print("ONLINE NETWORK USERS")
+            print("=" * 40)
+            if not users:
+                print(" (No other users currently registered)")
+            else:
+                for u in users:
+                    is_you = " (You)" if u == self.username else ""
+                    print(f" • {u}{is_you}")
+            print("=" * 40 + "\n")
+            return users
+        except Exception as err:
+            print(f"[-] Error fetching users: {err}")
+            return None
+
+    def send_file_to_user(
+        self,
+        recipient: str,
+        local_path_str: str,
+        show_progress: bool = True,
+    ) -> bool:
+        """Send a file targeted to another specific user, with delivery tracking."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return False
+
+        local_path = Path(local_path_str).expanduser().resolve()
+        if not local_path.is_file():
+            print(f"[-] Error: Source file '{local_path_str}' does not exist.")
+            return False
+
+        try:
+            file_size = local_path.stat().st_size
+        except OSError as err:
+            print(f"[-] Error reading file stats: {err}")
+            return False
+
+        clean_filename = sanitize_filename(local_path.name)
+        print(f"[*] Preparing two-way transfer of '{clean_filename}' ({format_bytes(file_size).strip()}) to '{recipient}'...")
+
+        try:
+            send_message(
+                self.sock,
+                {
+                    "command": CMD_SEND_TO,
+                    "sender": self.username,
+                    "recipient": recipient,
+                    "filename": clean_filename,
+                    "size": file_size,
+                },
+            )
+
+            resp = recv_message(self.sock)
+            if resp.get("status") != "OK":
+                print(f"[-] Transfer rejected: {resp.get('message')}")
+                return False
+
+            start_ts = time.time()
+            callback = display_progress if show_progress else None
+            sent = send_file_stream(
+                sock=self.sock,
+                file_path=local_path,
+                file_size=file_size,
+                progress_callback=callback,
+            )
+
+            completion = recv_message(self.sock)
+            if completion.get("status") == "OK":
+                elapsed = max(time.time() - start_ts, 0.001)
+                speed = sent / elapsed
+                print(
+                    f"\n[+] Two-Way Transfer Sent! '{clean_filename}' delivered to server for '{recipient}'."
+                )
+                print(f"[ACK: LEVEL 1 RECEIPT - Server Stored & Queued for '{recipient}']")
+                print(f"   Transfer ID: {completion.get('data', {}).get('transfer_id')}")
+                print(f"   Rate: {format_bytes(speed).strip()}/s in {elapsed:.2f}s")
+                print("   (Check 'View Outbox' later to see when the recipient downloads/receives it!)")
+                return True
+            else:
+                print(f"\n[-] Server reported error: {completion.get('message')}")
+                return False
+
+        except Exception as err:
+            print(f"\n[-] Transfer error: {err}")
+            return False
+
+    def view_inbox(self) -> Optional[List[Dict[str, Any]]]:
+        """View incoming files sent to this user by other peers."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return None
+
+        try:
+            send_message(self.sock, {"command": CMD_INBOX, "username": self.username})
+            resp = recv_message(self.sock)
+            if resp.get("status") != "OK":
+                print(f"[-] Error: {resp.get('message')}")
+                return None
+
+            inbox = resp.get("data", {}).get("inbox", [])
+            print("\n" + "=" * 85)
+            print(f"INBOX FOR '{self.username or 'Current User'}' (Incoming Files)")
+            print("=" * 85)
+            print(f"{'TRANSFER ID':<20} {'FROM':<15} {'FILENAME':<24} {'SIZE':<10} {'STATUS':<14}")
+            print("-" * 85)
+
+            if not inbox:
+                print(" (No incoming files in your inbox)")
+            else:
+                for item in inbox:
+                    status_badge = "[NEW / UNREAD]" if item.get("status") == DELIVERY_PENDING else "[DOWNLOADED]"
+                    print(
+                        f"{item.get('transfer_id'):<20} {item.get('sender'):<15} {item.get('filename'):<24} {format_bytes(item.get('size', 0)).strip():<10} {status_badge:<14}"
+                    )
+            print("=" * 85 + "\n")
+            return inbox
+        except Exception as err:
+            print(f"[-] Error fetching inbox: {err}")
+            return None
+
+    def view_outbox(self) -> Optional[List[Dict[str, Any]]]:
+        """View sent files and real-time delivery confirmation receipts (Did recipient receive it?)."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return None
+
+        try:
+            send_message(self.sock, {"command": CMD_OUTBOX, "username": self.username})
+            resp = recv_message(self.sock)
+            if resp.get("status") != "OK":
+                print(f"[-] Error: {resp.get('message')}")
+                return None
+
+            outbox = resp.get("data", {}).get("outbox", [])
+            print("\n" + "=" * 90)
+            print(f"OUTBOX FOR '{self.username or 'Current User'}' (Sent Files & Delivery Confirmation Receipts)")
+            print("=" * 90)
+            print(f"{'TO':<14} {'FILENAME':<22} {'SENT AT':<18} {'DELIVERY STATUS'}")
+            print("-" * 90)
+
+            if not outbox:
+                print(" (No outgoing transfers recorded yet)")
+            else:
+                for item in outbox:
+                    recip = item.get("recipient", "Unknown")
+                    fname = item.get("filename", "file")
+                    sent_at = item.get("sent_at", "")
+                    if item.get("status") == DELIVERY_CONFIRMED:
+                        rcv_time = item.get("received_at", "N/A")
+                        receipt_str = f"[CONFIRMED: RECEIVED BY {recip} at {rcv_time}]"
+                    else:
+                        receipt_str = f"[PENDING: SENT TO SERVER (Waiting for {recip} to download)]"
+
+                    print(f"{recip:<14} {fname:<22} {sent_at:<18} {receipt_str}")
+            print("=" * 90 + "\n")
+            return outbox
+        except Exception as err:
+            print(f"[-] Error fetching outbox: {err}")
+            return None
+
+    def download_inbox_file(
+        self,
+        transfer_id: str,
+        show_progress: bool = True,
+    ) -> bool:
+        """Download incoming file from inbox and trigger delivery confirmation back to sender."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return False
+
+        try:
+            send_message(
+                self.sock,
+                {"command": CMD_RECEIVE_INBOX, "transfer_id": transfer_id, "username": self.username},
+            )
+            resp = recv_message(self.sock)
+            if resp.get("status") != "OK":
+                print(f"[-] Server error: {resp.get('message')}")
+                return False
+
+            data = resp.get("data", {})
+            filename = data.get("filename", "received_file")
+            file_size = data.get("size", 0)
+            sender = data.get("sender", "Peer")
+
+            target_path = self.download_dir / sanitize_filename(filename)
+            print(f"[*] Downloading '{filename}' ({format_bytes(file_size).strip()}) sent by '{sender}'...")
+
+            # Send readiness ACK
+            send_message(self.sock, make_ok_response("Ready to receive stream"))
+
+            start_ts = time.time()
+            callback = display_progress if show_progress else None
+            received = recv_file_stream(
+                sock=self.sock,
+                destination_path=target_path,
+                file_size=file_size,
+                progress_callback=callback,
+            )
+
+            elapsed = max(time.time() - start_ts, 0.001)
+            speed = received / elapsed
+            print(
+                f"\n[+] Successfully received '{filename}' from '{sender}'!"
+            )
+            print(f"[+] Saved to: {target_path}")
+            print(f"[CONFIRMED: DELIVERY RECEIPT - Notified sender '{sender}' that you received the file!]")
+            return True
+
+        except Exception as err:
+            print(f"\n[-] Error receiving inbox file: {err}")
+            return False
+
+
 
     def connect(self, host: Optional[str] = None, port: Optional[int] = None) -> bool:
         """Establish a TCP connection to the server."""
@@ -368,27 +625,43 @@ class FileTransferClient:
 
 
 def run_interactive_cli() -> None:
-    """Run interactive Command-Line Interface menu loop."""
+    """Run interactive Command-Line Interface menu loop with two-way transfer and delivery receipts."""
     ensure_directories_exist()
     client = FileTransferClient()
 
-    banner = """
-========================================
-  MULTITHREADED NETWORK FILE TRANSFER
-========================================
-1. Connect to Server
-2. List Server Files
-3. Upload File
-4. Download File
-5. View Connection Status
-6. Disconnect
-7. Exit
-========================================
-"""
-
     while True:
         try:
-            print(banner)
+            if client.is_connected and client.username:
+                user_status = f"CONNECTED as '{client.username}'"
+            elif client.is_connected:
+                user_status = "CONNECTED (Anonymous)"
+            else:
+                user_status = "DISCONNECTED"
+
+            menu = f"""
+============================================================
+           MULTITHREADED NETWORK FILE TRANSFER
+           Status: {user_status}
+============================================================
+ [ TWO-WAY PEER-TO-PEER TRANSFERS WITH DELIVERY ACKS ]
+  1. Connect / Login as Username
+  2. Send File to Another User (Two-Way Targeted Transfer)
+  3. View Inbox & Receive Files (Triggers Delivery ACK)
+  4. View Outbox & Delivery Receipts (Delivery Tracker)
+  5. List Online Users
+
+ [ PUBLIC SERVER STORAGE (CENTRALIZED REPOSITORY) ]
+  6. List Server Public Files
+  7. Upload Public File
+  8. Download Public File
+
+ [ SYSTEM CONTROLS ]
+  9. View Connection Status
+  10. Disconnect
+  11. Exit
+============================================================
+"""
+            print(menu)
             choice = input("Choose an option: ").strip()
 
             if choice == "1":
@@ -404,26 +677,73 @@ def run_interactive_cli() -> None:
                     print("[-] Invalid port number. Keeping default.")
                     port = default_p
 
-                client.connect(host=host, port=port)
+                if client.connect(host=host, port=port):
+                    uname = input("Enter your username (e.g. Alice, Bob): ").strip()
+                    if uname:
+                        client.register(uname)
 
             elif choice == "2":
-                client.list_files()
+                if not client.is_connected:
+                    print("[-] Please connect to the server first (Option 1).")
+                    continue
+                if not client.username:
+                    uname = input("Enter your username first: ").strip()
+                    if uname:
+                        client.register(uname)
+
+                recipient = input("Enter recipient username (e.g. Bob): ").strip()
+                if not recipient:
+                    print("[-] Recipient username cannot be blank.")
+                    continue
+                filepath = input("Enter path to file you want to send: ").strip()
+                client.send_file_to_user(recipient=recipient, local_path_str=filepath)
 
             elif choice == "3":
+                if not client.is_connected:
+                    print("[-] Please connect to the server first (Option 1).")
+                    continue
+                if not client.username:
+                    uname = input("Enter your username to view your inbox: ").strip()
+                    if uname:
+                        client.register(uname)
+                inbox = client.view_inbox()
+                if inbox:
+                    dl_choice = input("Enter Transfer ID to download & acknowledge receipt (or Enter to skip): ").strip()
+                    if dl_choice:
+                        client.download_inbox_file(dl_choice)
+
+            elif choice == "4":
+                if not client.is_connected:
+                    print("[-] Please connect to the server first (Option 1).")
+                    continue
+                if not client.username:
+                    uname = input("Enter your username to check outbox: ").strip()
+                    if uname:
+                        client.register(uname)
+                client.view_outbox()
+
+            elif choice == "5":
+                if not client.is_connected:
+                    print("[-] Please connect to the server first (Option 1).")
+                    continue
+                client.list_online_users()
+
+            elif choice == "6":
+                client.list_files()
+
+            elif choice == "7":
                 if not client.is_connected:
                     print("[-] You must connect to the server first (Option 1).")
                     continue
                 path_str = input("Enter path to file you wish to upload: ").strip()
-                # Check if user wants overwrite flag if file exists
                 overwrite_choice = input("Overwrite if file already exists on server? (y/N): ").strip().lower()
                 overwrite = overwrite_choice == "y"
                 client.upload_file(path_str, overwrite=overwrite)
 
-            elif choice == "4":
+            elif choice == "8":
                 if not client.is_connected:
                     print("[-] You must connect to the server first (Option 1).")
                     continue
-                # Optionally offer to show list first
                 file_to_download = input("Enter filename to download from server: ").strip()
                 target = client.download_dir / file_to_download
                 overwrite = False
@@ -433,23 +753,22 @@ def run_interactive_cli() -> None:
                         print("[!] Download cancelled by user to avoid overwrite.")
                         continue
                     overwrite = True
-
                 client.download_file(file_to_download, overwrite=overwrite)
 
-            elif choice == "5":
+            elif choice == "9":
                 client.view_status()
 
-            elif choice == "6":
+            elif choice == "10":
                 client.disconnect()
 
-            elif choice == "7":
+            elif choice == "11":
                 if client.is_connected:
                     client.disconnect()
                 print("Exiting application. Goodbye!")
                 break
 
             else:
-                print("[-] Invalid option selected. Please choose a number between 1 and 7.")
+                print("[-] Invalid option selected. Please choose a number between 1 and 11.")
 
         except (KeyboardInterrupt, EOFError):
             print("\nKeyboard interrupt detected. Exiting...")
@@ -461,7 +780,7 @@ def run_interactive_cli() -> None:
 def main() -> None:
     """CLI script entry point."""
     parser = argparse.ArgumentParser(
-        description="Multithreaded Network File Transfer Client"
+        description="Multithreaded Network File Transfer Client (Two-Way Transfer & Delivery ACKs)"
     )
     parser.add_argument(
         "--host",
@@ -476,10 +795,38 @@ def main() -> None:
         help=f"Server port (default: {DEFAULT_PORT}).",
     )
     parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Login as username for two-way transfers.",
+    )
+    parser.add_argument(
+        "--send-to",
+        type=str,
+        default=None,
+        help="Recipient username for two-way file send.",
+    )
+    parser.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="Path of file to send to recipient.",
+    )
+    parser.add_argument(
+        "--inbox",
+        action="store_true",
+        help="Check incoming files in inbox.",
+    )
+    parser.add_argument(
+        "--outbox",
+        action="store_true",
+        help="Check sent files and delivery receipts in outbox.",
+    )
+    parser.add_argument(
         "--upload",
         type=str,
         default=None,
-        help="Directly upload specified file and exit.",
+        help="Directly upload specified file to public storage and exit.",
     )
     parser.add_argument(
         "--download",
@@ -494,26 +841,34 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # If CLI flags were supplied for direct scripted execution
-    if args.upload or args.download or args.list:
+    # Scripted CLI actions
+    if any([args.send_to, args.inbox, args.outbox, args.upload, args.download, args.list]):
         client = FileTransferClient(host=args.host, port=args.port)
         if not client.connect():
             sys.exit(1)
         try:
-            if args.list:
-                client.list_files()
-            if args.upload:
-                success = client.upload_file(args.upload, overwrite=True)
-                if not success:
+            if args.user:
+                client.register(args.user)
+
+            if args.send_to and args.file:
+                ok = client.send_file_to_user(recipient=args.send_to, local_path_str=args.file)
+                if not ok:
                     sys.exit(1)
-            if args.download:
-                success = client.download_file(args.download, overwrite=True)
-                if not success:
+            elif args.inbox:
+                client.view_inbox()
+            elif args.outbox:
+                client.view_outbox()
+            elif args.list:
+                client.list_files()
+            elif args.upload:
+                if not client.upload_file(args.upload, overwrite=True):
+                    sys.exit(1)
+            elif args.download:
+                if not client.download_file(args.download, overwrite=True):
                     sys.exit(1)
         finally:
             client.disconnect()
     else:
-        # Default interactive menu mode
         run_interactive_cli()
 
 

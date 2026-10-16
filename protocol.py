@@ -28,9 +28,21 @@ CMD_UPLOAD = "UPLOAD"
 CMD_DOWNLOAD = "DOWNLOAD"
 CMD_QUIT = "QUIT"
 
+# Two-way user-to-user transfer operations & delivery confirmation
+CMD_REGISTER = "REGISTER"          # Bind client connection to a username (e.g. Alice, Bob)
+CMD_USERS = "USERS"                # Retrieve list of online/known users
+CMD_SEND_TO = "SEND_TO"            # Send a file directly targeted to a specific recipient
+CMD_INBOX = "INBOX"                # Query incoming files sent to current user
+CMD_OUTBOX = "OUTBOX"              # Query sent files with end-to-end delivery receipts
+CMD_RECEIVE_INBOX = "RECEIVE_INBOX" # Download a file from inbox & trigger recipient ACK
+
 # Standard response statuses
 STATUS_OK = "OK"
 STATUS_ERROR = "ERROR"
+
+# Delivery receipt statuses
+DELIVERY_PENDING = "PENDING_RECEIPT"     # Received by server, waiting for recipient to download
+DELIVERY_CONFIRMED = "RECEIVED_BY_USER"  # Recipient has downloaded & confirmed receipt
 
 # Type alias for progress callback: (bytes_transferred, total_bytes, percent, speed_bps)
 ProgressCallback = Callable[[int, int, float, float], None]

@@ -230,9 +230,92 @@ class TestFileTransferIntegration(unittest.TestCase):
         self.assertFalse((self.server_path / target_name).exists())
         self.assertFalse((self.server_path / f"{target_name}.part").exists())
 
+    def test_two_way_transfer_with_delivery_receipt(self) -> None:
+        """Verify two-way file exchange between users and delivery confirmation receipts."""
+        alice_dir = tempfile.TemporaryDirectory()
+        bob_dir = tempfile.TemporaryDirectory()
+        alice_path = Path(alice_dir.name)
+        bob_path = Path(bob_dir.name)
+
+        try:
+            # 1. Connect and register Alice and Bob
+            client_alice = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=alice_path)
+            client_bob = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=bob_path)
+
+            self.assertTrue(client_alice.connect())
+            self.assertTrue(client_bob.connect())
+
+            self.assertTrue(client_alice.register("Alice"))
+            self.assertTrue(client_bob.register("Bob"))
+
+            # 2. Alice sends a file to Bob
+            alice_file = alice_path / "homework.py"
+            alice_content = "print('Hello Bob! Here is the completed assignment.')\n"
+            alice_file.write_text(alice_content, encoding="utf-8")
+
+            sent_ok = client_alice.send_file_to_user(recipient="Bob", local_path_str=str(alice_file), show_progress=False)
+            self.assertTrue(sent_ok)
+
+            # 3. Verify Alice's outbox shows PENDING_RECEIPT before Bob downloads
+            outbox_alice = client_alice.view_outbox()
+            self.assertIsNotNone(outbox_alice)
+            self.assertEqual(len(outbox_alice), 1)
+            self.assertEqual(outbox_alice[0]["recipient"], "Bob")
+            self.assertEqual(outbox_alice[0]["status"], "PENDING_RECEIPT")
+            self.assertIsNone(outbox_alice[0]["received_at"])
+
+            # 4. Bob checks inbox and downloads homework.py
+            inbox_bob = client_bob.view_inbox()
+            self.assertIsNotNone(inbox_bob)
+            self.assertEqual(len(inbox_bob), 1)
+            self.assertEqual(inbox_bob[0]["sender"], "Alice")
+            self.assertEqual(inbox_bob[0]["filename"], "homework.py")
+
+            tx_id = inbox_bob[0]["transfer_id"]
+            download_ok = client_bob.download_inbox_file(transfer_id=tx_id, show_progress=False)
+            self.assertTrue(download_ok)
+
+            # Verify downloaded file content
+            bob_received_file = bob_path / "homework.py"
+            self.assertTrue(bob_received_file.exists())
+            self.assertEqual(bob_received_file.read_text(encoding="utf-8"), alice_content)
+
+            # 5. Alice checks outbox again: DELIVERY CONFIRMATION is verified!
+            outbox_alice_updated = client_alice.view_outbox()
+            self.assertEqual(outbox_alice_updated[0]["status"], "RECEIVED_BY_USER")
+            self.assertIsNotNone(outbox_alice_updated[0]["received_at"])
+
+            # 6. Two-Way Reply: Bob sends a reply file back to Alice!
+            bob_reply = bob_path / "feedback.txt"
+            bob_content = "Great job Alice! Checked and grade is 100/100.\n"
+            bob_reply.write_text(bob_content, encoding="utf-8")
+
+            reply_ok = client_bob.send_file_to_user(recipient="Alice", local_path_str=str(bob_reply), show_progress=False)
+            self.assertTrue(reply_ok)
+
+            # Alice checks inbox and downloads Bob's reply
+            inbox_alice = client_alice.view_inbox()
+            self.assertEqual(len(inbox_alice), 1)
+            self.assertEqual(inbox_alice[0]["sender"], "Bob")
+
+            reply_tx_id = inbox_alice[0]["transfer_id"]
+            alice_dl_ok = client_alice.download_inbox_file(transfer_id=reply_tx_id, show_progress=False)
+            self.assertTrue(alice_dl_ok)
+
+            # Bob checks outbox: confirms Alice received his reply
+            outbox_bob = client_bob.view_outbox()
+            self.assertEqual(outbox_bob[0]["status"], "RECEIVED_BY_USER")
+            self.assertIsNotNone(outbox_bob[0]["received_at"])
+
+            client_alice.disconnect()
+            client_bob.disconnect()
+        finally:
+            alice_dir.cleanup()
+            bob_dir.cleanup()
 
 
 class TestConcurrentClients(unittest.TestCase):
+
     """Tests high-concurrency multi-client simultaneous operations."""
 
     def setUp(self) -> None:

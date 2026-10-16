@@ -7,20 +7,23 @@ file listings, and safe filename validation.
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import argparse
 import logging
 import os
+import re
 import socket
 import sys
 import threading
 import time
+import uuid
 
 from config import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     LISTEN_BACKLOG,
     LOGS_DIR,
+    MAILBOX_DIR,
     MAX_FILE_SIZE,
     SERVER_STORAGE_DIR,
     SOCKET_TIMEOUT,
@@ -30,9 +33,17 @@ from config import (
 )
 from protocol import (
     CMD_DOWNLOAD,
+    CMD_INBOX,
     CMD_LIST,
+    CMD_OUTBOX,
     CMD_QUIT,
+    CMD_RECEIVE_INBOX,
+    CMD_REGISTER,
+    CMD_SEND_TO,
     CMD_UPLOAD,
+    CMD_USERS,
+    DELIVERY_CONFIRMED,
+    DELIVERY_PENDING,
     ConnectionClosedError,
     ProtocolError,
     make_error_response,
@@ -91,11 +102,17 @@ class FileTransferServer:
         self.host = host
         self.port = port
         self.storage_dir = Path(storage_dir).resolve()
+        self.mailbox_dir = (self.storage_dir.parent / "mailbox").resolve()
+        self.mailbox_dir.mkdir(parents=True, exist_ok=True)
         self.file_locks = FileLockManager()
         self.is_running = False
         self.server_socket: socket.socket | None = None
         self.client_threads: List[threading.Thread] = []
         self._threads_lock = threading.Lock()
+        self.users_lock = threading.Lock()
+        self.active_users: Dict[str, str] = {}  # username -> addr_str
+        self.transfers_lock = threading.Lock()
+        self.transfers_ledger: Dict[str, Dict[str, Any]] = {}  # transfer_id -> transfer record
         self.logger = logging.getLogger("FileServer")
 
     def start(self) -> None:
@@ -190,6 +207,7 @@ class FileTransferServer:
         addr_str = f"{client_address[0]}:{client_address[1]}"
         # Set socket timeout for idle communication to detect dropped connections
         client_socket.settimeout(SOCKET_TIMEOUT)
+        current_user: Optional[str] = None
 
         try:
             while self.is_running:
@@ -213,9 +231,23 @@ class FileTransferServer:
                     break
 
                 command = request.get("command")
-                self.logger.info(f"[REQUEST] {addr_str} -> Command: {command}")
+                self.logger.info(f"[REQUEST] {addr_str} (User: {current_user or 'Anon'}) -> Command: {command}")
 
-                if command == CMD_LIST:
+                if command == CMD_REGISTER:
+                    user_reg = self._handle_register(client_socket, request, addr_str)
+                    if user_reg:
+                        current_user = user_reg
+                elif command == CMD_USERS:
+                    self._handle_users(client_socket, addr_str)
+                elif command == CMD_SEND_TO:
+                    self._handle_send_to(client_socket, request, addr_str, current_user)
+                elif command == CMD_INBOX:
+                    self._handle_inbox(client_socket, request, addr_str, current_user)
+                elif command == CMD_OUTBOX:
+                    self._handle_outbox(client_socket, request, addr_str, current_user)
+                elif command == CMD_RECEIVE_INBOX:
+                    self._handle_receive_inbox(client_socket, request, addr_str, current_user)
+                elif command == CMD_LIST:
                     self._handle_list(client_socket, addr_str)
                 elif command == CMD_UPLOAD:
                     self._handle_upload(client_socket, request, addr_str)
@@ -247,6 +279,11 @@ class FileTransferServer:
             except OSError:
                 pass
         finally:
+            if current_user:
+                with self.users_lock:
+                    if self.active_users.get(current_user) == addr_str:
+                        del self.active_users[current_user]
+                self.logger.info(f"[USER LOGOUT] User '{current_user}' session terminated.")
             try:
                 client_socket.close()
             except OSError:
@@ -255,8 +292,332 @@ class FileTransferServer:
                 if threading.current_thread() in self.client_threads:
                     self.client_threads.remove(threading.current_thread())
             self.logger.info(f"[CLOSED] Connection with {addr_str} closed.")
+    def _handle_register(
+        self, client_socket: socket.socket, request: Dict[str, Any], addr_str: str
+    ) -> Optional[str]:
+        """Handle REGISTER command: associate client socket with a unique username."""
+        username = request.get("username", "").strip()
+        if not username:
+            send_message(
+                client_socket,
+                make_error_response("Username cannot be empty.", code=400),
+            )
+            return None
+
+        clean_user = re.sub(r"[^\w\-\.]", "", username)
+        if not clean_user:
+            send_message(
+                client_socket,
+                make_error_response("Username contains invalid characters.", code=400),
+            )
+            return None
+
+        with self.users_lock:
+            self.active_users[clean_user] = addr_str
+
+        self.logger.info(f"[USER REGISTER] Client {addr_str} registered as '{clean_user}'")
+        send_message(
+            client_socket,
+            make_ok_response(
+                f"Successfully registered as '{clean_user}'.",
+                data={"username": clean_user},
+            ),
+        )
+        return clean_user
+
+    def _handle_users(self, client_socket: socket.socket, addr_str: str) -> None:
+        """Handle USERS command: return list of active registered users."""
+        with self.users_lock:
+            online = sorted(list(self.active_users.keys()))
+        send_message(
+            client_socket,
+            make_ok_response(
+                f"Retrieved {len(online)} active users.",
+                data={"users": online, "count": len(online)},
+            ),
+        )
+
+    def _handle_send_to(
+        self,
+        client_socket: socket.socket,
+        request: Dict[str, Any],
+        addr_str: str,
+        current_user: Optional[str],
+    ) -> None:
+        """Handle SEND_TO command: direct two-way transfer to a designated recipient."""
+        sender = current_user or request.get("sender") or "Anonymous"
+        recipient = request.get("recipient", "").strip()
+        raw_filename = request.get("filename")
+        declared_size = request.get("size")
+
+        if not recipient or not raw_filename or declared_size is None:
+            send_message(
+                client_socket,
+                make_error_response(
+                    "Missing 'recipient', 'filename', or 'size' parameter for SEND_TO.",
+                    code=400,
+                ),
+            )
+            return
+
+        try:
+            clean_filename = sanitize_filename(raw_filename)
+        except ValueError as err:
+            send_message(client_socket, make_error_response(str(err), code=400))
+            return
+
+        if not isinstance(declared_size, int) or declared_size < 0:
+            send_message(
+                client_socket,
+                make_error_response("Invalid file size parameter.", code=400),
+            )
+            return
+
+        if declared_size > MAX_FILE_SIZE:
+            send_message(
+                client_socket,
+                make_error_response(
+                    f"File exceeds maximum allowed size ({MAX_FILE_SIZE} bytes).",
+                    code=413,
+                ),
+            )
+            return
+
+        transfer_id = f"tx_{int(time.time() * 1000)}_{uuid.uuid4().hex[:6]}"
+        storage_filename = f"{transfer_id}_{clean_filename}"
+        target_path = self.mailbox_dir / storage_filename
+
+        self.logger.info(
+            f"[TWO-WAY SEND START] '{sender}' -> '{recipient}': '{clean_filename}' ({declared_size} bytes)"
+        )
+        send_message(
+            client_socket,
+            make_ok_response(
+                "Ready to receive transfer stream.",
+                data={"transfer_id": transfer_id, "recipient": recipient},
+            ),
+        )
+
+        try:
+            bytes_received = recv_file_stream(
+                sock=client_socket,
+                destination_path=target_path,
+                file_size=declared_size,
+            )
+            sent_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            record = {
+                "transfer_id": transfer_id,
+                "sender": sender,
+                "recipient": recipient,
+                "filename": clean_filename,
+                "size": bytes_received,
+                "sent_at": sent_time,
+                "status": DELIVERY_PENDING,
+                "received_at": None,
+                "storage_filename": storage_filename,
+            }
+
+            with self.transfers_lock:
+                self.transfers_ledger[transfer_id] = record
+
+            self.logger.info(
+                f"[TWO-WAY QUEUED] '{clean_filename}' received from '{sender}' for '{recipient}' [Tx: {transfer_id}]. Delivery pending."
+            )
+            send_message(
+                client_socket,
+                make_ok_response(
+                    f"File '{clean_filename}' delivered to server for recipient '{recipient}'. Delivery receipt active.",
+                    data=record,
+                ),
+            )
+        except Exception as exc:
+            self.logger.error(
+                f"[TWO-WAY SEND FAILED] Error receiving from '{sender}': {exc}"
+            )
+            if target_path.exists():
+                try:
+                    target_path.unlink()
+                except OSError:
+                    pass
+            try:
+                send_message(
+                    client_socket,
+                    make_error_response(f"Transfer failed: {exc}", code=500),
+                )
+            except OSError:
+                pass
+
+    def _handle_inbox(
+        self,
+        client_socket: socket.socket,
+        request: Dict[str, Any],
+        addr_str: str,
+        current_user: Optional[str],
+    ) -> None:
+        """Handle INBOX command: list incoming files waiting for current user."""
+        user = current_user or request.get("username", "").strip()
+        if not user:
+            send_message(
+                client_socket,
+                make_error_response("Must provide username or register to check inbox.", code=401),
+            )
+            return
+
+        with self.transfers_lock:
+            items = [
+                {
+                    "transfer_id": r["transfer_id"],
+                    "sender": r["sender"],
+                    "filename": r["filename"],
+                    "size": r["size"],
+                    "sent_at": r["sent_at"],
+                    "status": r["status"],
+                    "received_at": r["received_at"],
+                }
+                for r in self.transfers_ledger.values()
+                if r["recipient"].lower() == user.lower()
+            ]
+
+        items.sort(key=lambda x: x["sent_at"], reverse=True)
+        send_message(
+            client_socket,
+            make_ok_response(
+                f"Retrieved {len(items)} inbox item(s) for '{user}'.",
+                data={"inbox": items, "count": len(items)},
+            ),
+        )
+
+    def _handle_outbox(
+        self,
+        client_socket: socket.socket,
+        request: Dict[str, Any],
+        addr_str: str,
+        current_user: Optional[str],
+    ) -> None:
+        """Handle OUTBOX command: return sent transfers with live delivery confirmation receipts."""
+        user = current_user or request.get("username", "").strip()
+        if not user:
+            send_message(
+                client_socket,
+                make_error_response("Must provide username or register to check outbox.", code=401),
+            )
+            return
+
+        with self.transfers_lock:
+            items = [
+                {
+                    "transfer_id": r["transfer_id"],
+                    "recipient": r["recipient"],
+                    "filename": r["filename"],
+                    "size": r["size"],
+                    "sent_at": r["sent_at"],
+                    "status": r["status"],
+                    "received_at": r["received_at"],
+                }
+                for r in self.transfers_ledger.values()
+                if r["sender"].lower() == user.lower()
+            ]
+
+        items.sort(key=lambda x: x["sent_at"], reverse=True)
+        send_message(
+            client_socket,
+            make_ok_response(
+                f"Retrieved {len(items)} outbox item(s) for '{user}'.",
+                data={"outbox": items, "count": len(items)},
+            ),
+        )
+
+    def _handle_receive_inbox(
+        self,
+        client_socket: socket.socket,
+        request: Dict[str, Any],
+        addr_str: str,
+        current_user: Optional[str],
+    ) -> None:
+        """Handle RECEIVE_INBOX command: download file and confirm delivery receipt to sender."""
+        user = current_user or request.get("username", "").strip()
+        transfer_id = request.get("transfer_id")
+
+        if not transfer_id:
+            send_message(
+                client_socket,
+                make_error_response("Missing 'transfer_id' parameter.", code=400),
+            )
+            return
+
+        with self.transfers_lock:
+            record = self.transfers_ledger.get(transfer_id)
+
+        if not record:
+            send_message(
+                client_socket,
+                make_error_response(f"Transfer ID '{transfer_id}' not found.", code=404),
+            )
+            return
+
+        if user and record["recipient"].lower() != user.lower():
+            send_message(
+                client_socket,
+                make_error_response("Access denied: You are not the designated recipient.", code=403),
+            )
+            return
+
+        file_path = self.mailbox_dir / record["storage_filename"]
+        if not file_path.is_file():
+            send_message(
+                client_socket,
+                make_error_response("File not found in server mailbox.", code=404),
+            )
+            return
+
+        file_size = record["size"]
+        self.logger.info(
+            f"[INBOX DOWNLOAD] Delivering '{record['filename']}' ({file_size} B) to recipient '{record['recipient']}'"
+        )
+
+        # Notify client of file readiness
+        send_message(
+            client_socket,
+            make_ok_response(
+                "Transfer verified. Commencing streaming.",
+                data={
+                    "transfer_id": transfer_id,
+                    "filename": record["filename"],
+                    "size": file_size,
+                    "sender": record["sender"],
+                },
+            ),
+        )
+
+        # Await client readiness ack
+        try:
+            ack = recv_message(client_socket)
+            if ack.get("status") != "OK":
+                return
+        except Exception:
+            return
+
+        # Stream file to recipient
+        try:
+            bytes_sent = send_file_stream(
+                sock=client_socket, file_path=file_path, file_size=file_size
+            )
+            # CONFIRM DELIVERY RECEIPT
+            received_ts = time.strftime("%Y-%m-%d %H:%M:%S")
+            with self.transfers_lock:
+                record["status"] = DELIVERY_CONFIRMED
+                record["received_at"] = received_ts
+
+            self.logger.info(
+                f"[DELIVERY RECEIPT CONFIRMED] Recipient '{record['recipient']}' downloaded '{record['filename']}' from '{record['sender']}'! Delivery status updated to CONFIRMED."
+            )
+        except Exception as exc:
+            self.logger.error(
+                f"[INBOX STREAM FAILED] Error streaming {transfer_id} to '{record['recipient']}': {exc}"
+            )
 
     def _handle_list(self, client_socket: socket.socket, addr_str: str) -> None:
+
         """Handle LIST command: scan server_storage and return metadata of regular files."""
         files_info: List[Dict[str, Any]] = []
 

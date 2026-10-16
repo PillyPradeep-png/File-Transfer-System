@@ -24,11 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent
 SERVER_STORAGE_DIR = BASE_DIR / "server_storage"
 CLIENT_DOWNLOAD_DIR = BASE_DIR / "downloads"
 LOGS_DIR = BASE_DIR / "logs"
+MAILBOX_DIR = BASE_DIR / "mailbox"
 
 
 def ensure_directories_exist() -> None:
     """Create essential operational directories if they do not exist."""
-    for directory in (SERVER_STORAGE_DIR, CLIENT_DOWNLOAD_DIR, LOGS_DIR):
+    for directory in (SERVER_STORAGE_DIR, CLIENT_DOWNLOAD_DIR, LOGS_DIR, MAILBOX_DIR):
         directory.mkdir(parents=True, exist_ok=True)
 
 
