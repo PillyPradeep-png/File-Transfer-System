@@ -1,9 +1,9 @@
 """Web Interface & HTTP-to-TCP Bridge for Multithreaded File Transfer System.
 
-Provides a modern, glassmorphic Web UI and REST API gateway that communicates
-with the underlying multithreaded TCP socket server (server.py) using pure
-Python standard library (http.server, socket, threading). Supports user accounts,
-login via Username or auto-generated unique User ID, two-way transfers, and end-to-end delivery confirmation receipts.
+Features an Apple iPhone iOS Glassmorphism (Frosted Glass / Cupertino) UI,
+interactive iOS widgets, live Dynamic Island activity bar, user accounts with
+unique usernames and auto-generated User IDs, dual-addressing two-way transfers,
+and end-to-end delivery confirmation receipts.
 """
 
 from email import policy
@@ -55,74 +55,131 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multithreaded Network File Transfer | User ID & Username Two-Way Exchange</title>
+  <title>Multithreaded Network File Transfer | iOS Glass & Widgets</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-base: #090d16;
-      --bg-surface: #111827;
-      --bg-card: rgba(23, 32, 54, 0.75);
-      --bg-card-hover: rgba(30, 41, 69, 0.9);
-      --border-color: rgba(99, 102, 241, 0.2);
-      --border-glow: rgba(99, 102, 241, 0.45);
-      --primary: #6366f1;
-      --primary-light: #818cf8;
-      --accent-cyan: #06b6d4;
-      --accent-emerald: #10b981;
-      --accent-amber: #f59e0b;
-      --accent-rose: #f43f5e;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --text-faint: #64748b;
-      --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      /* Apple iOS 18 Color Palette (Light & Frosted Glass) */
+      --ios-blue: #007aff;
+      --ios-blue-light: rgba(0, 122, 255, 0.12);
+      --ios-purple: #5856d6;
+      --ios-indigo: #4338ca;
+      --ios-green: #34c759;
+      --ios-green-light: rgba(52, 199, 89, 0.15);
+      --ios-orange: #ff9500;
+      --ios-orange-light: rgba(255, 149, 0, 0.15);
+      --ios-red: #ff3b30;
+      --ios-red-light: rgba(255, 59, 48, 0.12);
+      --ios-teal: #30b0c7;
+
+      /* Apple Frosted Glass Tokens */
+      --glass-bg: rgba(255, 255, 255, 0.72);
+      --glass-bg-hover: rgba(255, 255, 255, 0.86);
+      --glass-bg-active: rgba(255, 255, 255, 0.95);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-shadow: 0 12px 36px rgba(15, 23, 42, 0.07), 0 2px 8px rgba(15, 23, 42, 0.04);
+      --glass-inset: inset 0 1px 1.5px rgba(255, 255, 255, 0.95);
+
+      /* Typography */
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-faint: #94a3b8;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.1) 0%, transparent 45%),
-                  radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 45%),
-                  var(--bg-base);
-      color: var(--text-main);
+      background: 
+        radial-gradient(at 0% 0%, rgba(147, 197, 253, 0.45) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(192, 132, 252, 0.45) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(244, 114, 182, 0.35) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(52, 211, 153, 0.35) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(254, 215, 170, 0.25) 0px, transparent 50%),
+        #f1f5f9;
+      background-attachment: fixed;
+      color: var(--text-primary);
       font-family: var(--font-sans);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
       line-height: 1.5;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-      background-size: 32px 32px;
-      pointer-events: none;
-      z-index: 0;
+      -webkit-font-smoothing: antialiased;
     }
 
     .container {
       max-width: 1360px;
       margin: 0 auto;
-      padding: 24px 20px 48px;
-      position: relative;
-      z-index: 1;
+      padding: 20px 24px 60px;
       width: 100%;
+      position: relative;
     }
 
+    /* ========================================================
+       1. iOS DYNAMIC ISLAND / LIVE ACTIVITY PILL
+       ======================================================== */
+    .dynamic-island-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .dynamic-island {
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 9999px;
+      padding: 8px 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .dynamic-island:hover {
+      transform: scale(1.02);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.28);
+    }
+
+    .island-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ios-green);
+      box-shadow: 0 0 10px var(--ios-green);
+      animation: islandPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes islandPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* ========================================================
+       2. iOS FROSTED GLASS HEADER
+       ======================================================== */
     header {
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow), var(--glass-inset);
+      border-radius: 24px;
+      padding: 16px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 22px;
       flex-wrap: wrap;
       gap: 16px;
     }
@@ -136,23 +193,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     .brand-icon {
       width: 48px;
       height: 48px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent-cyan) 100%);
+      border-radius: 14px;
+      background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3);
     }
 
     .brand-icon svg { width: 28px; height: 28px; color: white; }
 
     .brand-titles h1 {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 800;
       letter-spacing: -0.02em;
-      background: linear-gradient(to right, #fff, #cbd5e1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: var(--text-primary);
     }
 
     .brand-titles p {
@@ -165,162 +220,250 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       display: flex;
       align-items: center;
       gap: 12px;
-      background: rgba(17, 24, 39, 0.85);
-      border: 1px solid var(--border-color);
-      padding: 8px 16px;
-      border-radius: 14px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 6px 14px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
 
     .user-avatar {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      background: linear-gradient(135deg, #007aff, #34c759);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       color: #fff;
-      text-transform: uppercase;
+      box-shadow: 0 4px 10px rgba(0, 122, 255, 0.25);
     }
 
     .user-meta-name {
       font-weight: 700;
       font-size: 0.92rem;
-      color: #fff;
+      color: var(--text-primary);
     }
 
     .user-uid-pill {
-      background: rgba(99, 102, 241, 0.2);
-      border: 1px solid var(--primary-light);
-      color: #c7d2fe;
+      background: var(--ios-blue-light);
+      border: 1px solid rgba(0, 122, 255, 0.25);
+      color: var(--ios-blue);
       font-family: var(--font-mono);
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
-      letter-spacing: 0.04em;
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent-emerald);
-      box-shadow: 0 0 10px var(--accent-emerald);
-      animation: pulse 2s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-    }
-
-    /* Demo Quick Switcher */
-    .quick-switch-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(99, 102, 241, 0.08);
-      border: 1px solid rgba(99, 102, 241, 0.25);
-      padding: 8px 16px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      font-size: 0.82rem;
-    }
-
-    .quick-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #fff;
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      font-weight: 600;
-      padding: 5px 12px;
+      padding: 2px 8px;
       border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      letter-spacing: 0.03em;
     }
 
-    .quick-btn:hover {
-      background: rgba(99, 102, 241, 0.25);
-      border-color: var(--primary);
-      transform: translateY(-1px);
-    }
-
-    .quick-btn.active {
-      background: var(--primary);
-      border-color: var(--primary-light);
-      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
-    }
-
-    /* Tabs Bar */
-    .tabs-nav {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 22px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 10px;
-      overflow-x: auto;
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: 1px solid transparent;
+    /* ========================================================
+       3. iOS WIDGETS SECTION (HOME SCREEN WIDGETS)
+       ======================================================== */
+    .widgets-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
       color: var(--text-muted);
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 0.88rem;
-      padding: 9px 18px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
+      margin-bottom: 12px;
+      display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .tab-btn:hover {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.05);
+    .widgets-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 26px;
     }
 
-    .tab-btn.active {
-      background: rgba(99, 102, 241, 0.15);
-      border-color: var(--primary);
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    @media (max-width: 1200px) {
+      .widgets-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 680px) {
+      .widgets-grid { grid-template-columns: 1fr; }
     }
 
-    .badge-count {
-      background: var(--primary);
-      color: white;
-      font-size: 0.72rem;
-      padding: 2px 7px;
-      border-radius: 9999px;
+    .widget-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--glass-shadow), var(--glass-inset);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .widget-card:hover {
+      transform: translateY(-3px);
+      background: var(--glass-bg-hover);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.09), 0 3px 10px rgba(15, 23, 42, 0.05);
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .widget-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .widget-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .widget-icon-blue { background: var(--ios-blue-light); color: var(--ios-blue); }
+    .widget-icon-green { background: var(--ios-green-light); color: var(--ios-green); }
+    .widget-icon-orange { background: var(--ios-orange-light); color: var(--ios-orange); }
+    .widget-icon-purple { background: rgba(88, 86, 214, 0.15); color: var(--ios-purple); }
+
+    .widget-val-lg {
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .widget-subtext {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Quick Speed-Dial Avatars in Widget */
+    .widget-contacts-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .widget-contact-chip {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+
+    .widget-contact-chip:hover {
+      background: var(--ios-blue);
+      color: #fff;
+      transform: scale(1.04);
+    }
+
+    /* ========================================================
+       4. iOS SEGMENTED CONTROL TABS
+       ======================================================== */
+    .segmented-control-container {
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .segmented-control {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px;
+      padding: 5px;
+      display: inline-flex;
+      gap: 4px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    .segment-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 8px 18px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .segment-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .segment-btn.active {
+      background: #ffffff;
+      color: var(--ios-blue);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
       font-weight: 700;
     }
 
-    /* Cards & Grids */
-    .tab-content { display: none; }
-    .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+    .badge-count {
+      background: var(--ios-blue-light);
+      color: var(--ios-blue);
+      font-size: 0.72rem;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      font-weight: 800;
+    }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+    .segment-btn.active .badge-count {
+      background: var(--ios-blue);
+      color: #ffffff;
+    }
+
+    /* ========================================================
+       5. CONTENT CARDS & GRIDS
+       ======================================================== */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: iosFadeIn 0.28s ease; }
+
+    @keyframes iosFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     .grid-two {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
-      gap: 22px;
-      margin-bottom: 22px;
+      gap: 24px;
+      margin-bottom: 24px;
     }
 
     @media (max-width: 1024px) {
@@ -328,58 +471,64 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     }
 
     .card {
-      background: var(--bg-card);
-      backdrop-filter: blur(14px);
-      border: 1px solid var(--border-color);
-      border-radius: 18px;
-      padding: 24px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 26px;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: var(--glass-shadow), var(--glass-inset);
     }
 
     .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     .card-header h2 {
-      font-size: 1.05rem;
-      font-weight: 700;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: var(--text-primary);
     }
 
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     .form-group label {
       display: block;
       font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-weight: 700;
+      color: var(--text-secondary);
       margin-bottom: 6px;
     }
 
     .input-control {
       width: 100%;
-      background: rgba(11, 17, 30, 0.8);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 0.85rem;
-      color: #fff;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 0.88rem;
+      color: var(--text-primary);
       font-family: var(--font-sans);
       outline: none;
-      transition: border 0.2s ease;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03);
     }
 
     .input-control:focus {
-      border-color: var(--primary-light);
+      border-color: var(--ios-blue);
+      background: #ffffff;
+      box-shadow: 0 0 0 4px var(--ios-blue-light);
     }
 
     /* Recipient Suggestion Pills */
@@ -391,46 +540,58 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     }
 
     .pill-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #e2e8f0;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: var(--text-primary);
       font-size: 0.75rem;
-      padding: 4px 10px;
+      font-weight: 600;
+      padding: 5px 12px;
       border-radius: 20px;
       cursor: pointer;
       transition: all 0.2s ease;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
 
     .pill-btn:hover {
-      background: rgba(6, 182, 212, 0.2);
-      border-color: var(--accent-cyan);
+      background: var(--ios-blue);
+      border-color: var(--ios-blue);
       color: #fff;
+      transform: translateY(-1px);
     }
 
     .pill-uid {
       font-family: var(--font-mono);
       font-size: 0.7rem;
-      color: var(--accent-cyan);
+      color: var(--ios-blue);
+      background: var(--ios-blue-light);
+      padding: 2px 6px;
+      border-radius: 6px;
     }
 
-    /* Upload box */
+    .pill-btn:hover .pill-uid {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+    }
+
+    /* iOS Drag & Drop File Zone */
     .file-drop-area {
-      border: 2px dashed rgba(99, 102, 241, 0.35);
-      border-radius: 14px;
-      padding: 24px 16px;
+      border: 2px dashed rgba(0, 122, 255, 0.35);
+      border-radius: 20px;
+      padding: 28px 20px;
       text-align: center;
-      background: rgba(17, 24, 39, 0.5);
+      background: rgba(255, 255, 255, 0.6);
       cursor: pointer;
       position: relative;
       transition: all 0.2s ease;
     }
 
     .file-drop-area:hover {
-      border-color: var(--accent-cyan);
-      background: rgba(6, 182, 212, 0.05);
+      border-color: var(--ios-blue);
+      background: rgba(0, 122, 255, 0.04);
+      transform: scale(1.005);
     }
 
     .file-drop-area input[type="file"] {
@@ -449,60 +610,66 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       justify-content: center;
       gap: 8px;
       font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 0.85rem;
-      padding: 10px 18px;
-      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 12px 20px;
+      border-radius: 14px;
       border: none;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       text-decoration: none;
     }
 
+    .btn:active {
+      transform: scale(0.97);
+    }
+
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #007aff 0%, #0051d5 100%);
       color: #fff;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 4px 16px rgba(0, 122, 255, 0.35);
     }
 
     .btn-primary:hover {
-      background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+      box-shadow: 0 6px 20px rgba(0, 122, 255, 0.45);
       transform: translateY(-1px);
     }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
     }
 
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: #ffffff;
+      border-color: rgba(0, 0, 0, 0.16);
     }
 
     .btn-emerald {
-      background: linear-gradient(135deg, var(--accent-emerald) 0%, #059669 100%);
+      background: linear-gradient(135deg, #34c759 0%, #28a745 100%);
       color: white;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+      box-shadow: 0 4px 14px rgba(52, 199, 89, 0.35);
     }
 
     .btn-emerald:hover {
-      opacity: 0.92;
+      opacity: 0.95;
       transform: translateY(-1px);
     }
 
     .btn-sm {
-      padding: 6px 12px;
+      padding: 7px 14px;
       font-size: 0.78rem;
-      border-radius: 8px;
+      border-radius: 10px;
     }
 
     /* Tables */
     .table-container {
       overflow-x: auto;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-      background: rgba(11, 17, 30, 0.5);
+      border-radius: 16px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.7);
     }
 
     table {
@@ -513,91 +680,95 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     }
 
     th {
-      background: rgba(17, 24, 39, 0.8);
+      background: rgba(248, 250, 252, 0.85);
       color: var(--text-muted);
-      font-weight: 600;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-color);
-      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 0.76rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
 
     td {
-      padding: 14px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      color: var(--text-main);
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      color: var(--text-primary);
     }
 
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    tr:hover td { background: rgba(0, 122, 255, 0.02); }
 
-    /* Status Badges */
+    /* iOS Status Badges */
     .status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 9999px;
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-size: 0.74rem;
+      font-weight: 800;
       letter-spacing: 0.02em;
     }
 
     .status-pending {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: var(--ios-orange-light);
+      color: #b45309;
+      border: 1px solid rgba(255, 149, 0, 0.3);
     }
 
     .status-confirmed {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: var(--ios-green-light);
+      color: #15803d;
+      border: 1px solid rgba(52, 199, 89, 0.3);
     }
 
-    /* Live Terminal Console */
+    /* iOS Developer Log Console (Translucent Glass) */
     .terminal-card {
-      background: #080c14;
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      margin-top: 24px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #e2e8f0;
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 22px;
+      margin-top: 28px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
     }
 
     .terminal-header {
-      background: rgba(17, 24, 39, 0.9);
-      padding: 10px 16px;
+      background: rgba(30, 41, 59, 0.85);
+      padding: 12px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .terminal-dots { display: flex; gap: 6px; }
-    .terminal-dots span { width: 10px; height: 10px; border-radius: 50%; }
-    .dot-red { background: #ef4444; }
-    .dot-yellow { background: #f59e0b; }
-    .dot-green { background: #10b981; }
+    .terminal-dots { display: flex; gap: 7px; }
+    .terminal-dots span { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
 
     .terminal-body {
       font-family: var(--font-mono);
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       color: #cbd5e1;
-      padding: 16px;
+      padding: 18px;
       max-height: 180px;
       overflow-y: auto;
       white-space: pre-wrap;
       line-height: 1.6;
     }
 
-    /* Login Modal */
+    /* iOS Sheet Modal for Authentication */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -607,91 +778,117 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     .modal-overlay.active {
       display: flex;
-      animation: modalFade 0.25s ease;
+      animation: modalSpring 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes modalFade {
-      from { opacity: 0; transform: scale(0.96); }
+    @keyframes modalSpring {
+      from { opacity: 0; transform: scale(0.94); }
       to { opacity: 1; transform: scale(1); }
     }
 
     .modal-card {
-      background: #111827;
-      border: 1px solid var(--border-glow);
-      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(32px) saturate(200%);
+      -webkit-backdrop-filter: blur(32px) saturate(200%);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
       max-width: 480px;
       width: 100%;
-      padding: 30px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      padding: 32px;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.15), var(--glass-inset);
       position: relative;
     }
 
     .modal-close {
       position: absolute;
-      top: 18px;
-      right: 18px;
-      background: none;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.05);
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 1.2rem;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s ease;
     }
 
-    .modal-close:hover { color: #fff; }
+    .modal-close:hover { background: rgba(0, 0, 0, 0.1); color: var(--text-primary); }
 
     .auth-tab-bar {
       display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 10px;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 4px;
+      border-radius: 14px;
+      margin-bottom: 22px;
+      gap: 4px;
     }
 
     .auth-tab-btn {
+      flex: 1;
       background: none;
       border: none;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-weight: 700;
-      font-size: 0.9rem;
-      padding: 6px 12px;
+      font-size: 0.88rem;
+      padding: 8px 12px;
+      border-radius: 11px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
 
     .auth-tab-btn.active {
-      color: #fff;
-      border-bottom: 2px solid var(--primary);
+      background: #ffffff;
+      color: var(--ios-blue);
+      box-shadow: 0 3px 8px rgba(0,0,0,0.06);
     }
 
     .auth-view { display: none; }
     .auth-view.active { display: block; }
 
-    /* Toast */
+    /* Toast Notification */
     #toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: rgba(17, 24, 39, 0.95);
-      border: 1px solid var(--accent-emerald);
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      bottom: 28px;
+      right: 28px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: var(--text-primary);
+      padding: 14px 22px;
+      border-radius: 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.12);
       display: none;
+      align-items: center;
+      gap: 10px;
       z-index: 2000;
-      animation: toastIn 0.3s ease;
+      animation: toastSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateY(12px); }
+    @keyframes toastSlide {
+      from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
+    
+    <!-- 1. DYNAMIC ISLAND / LIVE ACTIVITY PILL -->
+    <div class="dynamic-island-wrapper">
+      <div class="dynamic-island" id="dynamic-island">
+        <span class="island-dot"></span>
+        <span id="island-text">📡 High-Speed TCP Socket Ready (:5000) &bull; 64 KB Buffer Stream</span>
+      </div>
+    </div>
+
+    <!-- 2. iOS FROSTED GLASS HEADER -->
     <header>
       <div class="brand">
         <div class="brand-icon">
@@ -700,8 +897,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           </svg>
         </div>
         <div class="brand-titles">
-          <h1>Multithreaded Network File Transfer</h1>
-          <p>User ID &amp; Username Two-Way Exchange with Live Delivery Receipts</p>
+          <h1>Network File Transfer</h1>
+          <p>Apple iOS Frosted Glass &bull; Dual Addressing by Username or User ID</p>
         </div>
       </div>
 
@@ -710,11 +907,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         <div>
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="user-meta-name" id="header-username">alice</span>
-            <span class="user-uid-pill" id="header-uid" title="Click to copy User ID" onclick="copyUid()" style="cursor:pointer;">UID-1001</span>
+            <span class="user-uid-pill" id="header-uid" title="Click to copy User ID" onclick="copyUid()" style="cursor:pointer;">UID-1001 📋</span>
           </div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-            <span class="pulse-dot"></span>
-            <span style="font-size:0.72rem; color:var(--accent-emerald); font-weight:600;">TCP Socket Connected (:5000)</span>
+          <div style="font-size:0.72rem; color:var(--ios-green); font-weight:700; margin-top:2px;">
+            ● Authenticated Session Active
           </div>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="openAuthModal()" style="margin-left:8px;">
@@ -723,66 +919,141 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       </div>
     </header>
 
-    <!-- Quick Switch Demo Bar -->
-    <div class="quick-switch-bar">
-      <span style="color:var(--text-muted); font-weight:600;">⚡ Instant Demo Account Switcher:</span>
-      <button class="quick-btn active" id="btn-demo-alice" onclick="quickLoginDemo('alice', 'password123')">
-        <span>👤 Alice</span>
-        <span style="color:var(--accent-cyan); font-family:var(--font-mono); font-size:0.72rem;">(UID-1001)</span>
-      </button>
-      <button class="quick-btn" id="btn-demo-bob" onclick="quickLoginDemo('bob', 'password123')">
-        <span>👤 Bob</span>
-        <span style="color:var(--accent-cyan); font-family:var(--font-mono); font-size:0.72rem;">(UID-1002)</span>
-      </button>
-      <button class="quick-btn" onclick="openAuthModal('register')">
-        <span>➕ Create New Account (Auto User ID)</span>
-      </button>
+    <!-- 3. iOS WIDGETS GRID -->
+    <div class="widgets-section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
+      iOS System Widgets
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="tabs-nav">
-      <button class="tab-btn active" onclick="switchTab('two-way')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
-        Two-Way Direct Transfer
-      </button>
-      <button class="tab-btn" onclick="switchTab('inbox')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/><path d="M5.45 5.11L2 12v0h20v0l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        My Inbox
-        <span class="badge-count" id="inbox-badge">0</span>
-      </button>
-      <button class="tab-btn" onclick="switchTab('outbox')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-        Sent Outbox &amp; Delivery ACKs
-        <span class="badge-count" id="outbox-badge">0</span>
-      </button>
-      <button class="tab-btn" onclick="switchTab('public')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Public Server Repository
-      </button>
+    <div class="widgets-grid">
+      <!-- WIDGET 1: USER IDENTITY -->
+      <div class="widget-card">
+        <div class="widget-header">
+          <span class="widget-label">Active Account</span>
+          <div class="widget-icon-pill widget-icon-blue">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="widget-val-lg" id="widget-username">alice</div>
+          <div class="widget-subtext" style="display:flex; align-items:center; gap:6px;">
+            <span>ID:</span>
+            <span class="user-uid-pill" id="widget-uid">UID-1001</span>
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:6px;">
+          <button class="btn btn-secondary btn-sm" style="flex:1; font-size:0.72rem;" onclick="copyUid()">Copy UID</button>
+          <button class="btn btn-secondary btn-sm" style="flex:1; font-size:0.72rem;" onclick="openAuthModal()">Switch</button>
+        </div>
+      </div>
+
+      <!-- WIDGET 2: NETWORK & TCP SOCKET HEALTH -->
+      <div class="widget-card">
+        <div class="widget-header">
+          <span class="widget-label">TCP Socket Health</span>
+          <div class="widget-icon-pill widget-icon-green">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="widget-val-lg" style="color:var(--ios-green);">127.0.0.1:5000</div>
+          <div class="widget-subtext">Multithreaded Server Online</div>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:12px;">
+          Buffer: <strong>64 KB Chunks</strong> &bull; Latency: <strong>&lt; 1 ms</strong>
+        </div>
+      </div>
+
+      <!-- WIDGET 3: MAILBOX & DELIVERY CONFIRMATION GAUGE -->
+      <div class="widget-card">
+        <div class="widget-header">
+          <span class="widget-label">Mailbox &amp; Receipts</span>
+          <div class="widget-icon-pill widget-icon-orange">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div>
+            <div class="widget-val-lg" id="widget-inbox-count">0</div>
+            <div class="widget-subtext">Incoming in Inbox</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="widget-val-lg" id="widget-outbox-count" style="color:var(--ios-blue);">0</div>
+            <div class="widget-subtext">Sent Outbox Files</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:12px;">
+          Delivery Confirmations: <strong style="color:var(--ios-green);" id="widget-ack-status">Active &amp; Tracked</strong>
+        </div>
+      </div>
+
+      <!-- WIDGET 4: SPEED-DIAL CONTACTS WIDGET -->
+      <div class="widget-card">
+        <div class="widget-header">
+          <span class="widget-label">Quick Contacts</span>
+          <div class="widget-icon-pill widget-icon-purple">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+        </div>
+        <div class="widget-subtext">Click to target for file dispatch:</div>
+        <div class="widget-contacts-row" id="widget-speed-dial">
+          <span class="widget-contact-chip" onclick="quickSelectRecipient('bob')">👤 Bob</span>
+          <span class="widget-contact-chip" onclick="quickSelectRecipient('alice')">👤 Alice</span>
+        </div>
+        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:12px;">
+          Send using either Username or User ID
+        </div>
+      </div>
     </div>
 
-    <!-- TAB 1: TWO-WAY DIRECT TRANSFER -->
+    <!-- 4. iOS SEGMENTED CONTROL TABS -->
+    <div class="segmented-control-container">
+      <div class="segmented-control">
+        <button class="segment-btn active" onclick="switchTab('two-way')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+          Direct Two-Way Transfer
+        </button>
+        <button class="segment-btn" onclick="switchTab('inbox')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/></svg>
+          My Inbox
+          <span class="badge-count" id="inbox-badge">0</span>
+        </button>
+        <button class="segment-btn" onclick="switchTab('outbox')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Sent Outbox &amp; ACKs
+          <span class="badge-count" id="outbox-badge">0</span>
+        </button>
+        <button class="segment-btn" onclick="switchTab('public')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+          Public Repository
+        </button>
+      </div>
+    </div>
+
+    <!-- ========================================================
+         TAB 1: TWO-WAY DIRECT TRANSFER
+         ======================================================== -->
     <div class="tab-content active" id="tab-two-way">
       <div class="grid-two">
         <div class="card">
           <div class="card-header">
             <h2>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Send File Directly to Recipient
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              Transmit File to Peer
             </h2>
           </div>
 
-          <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.83rem;">
-            Sending from: <strong style="color:#fff;" id="sender-display-name">alice</strong>
-            <span class="user-uid-pill" id="sender-display-uid" style="margin-left:6px;">UID-1001</span>
+          <div style="background:var(--ios-blue-light); border:1px solid rgba(0, 122, 255, 0.2); border-radius:14px; padding:12px 16px; margin-bottom:18px; font-size:0.85rem;">
+            Sending from: <strong style="color:var(--ios-blue);" id="sender-display-name">alice</strong>
+            <span class="user-uid-pill" id="sender-display-uid" style="margin-left:8px;">UID-1001</span>
           </div>
 
           <form id="direct-send-form" onsubmit="handleDirectSend(event)">
             <div class="form-group">
               <label>Target Recipient (Enter Username OR User ID)</label>
               <input type="text" class="input-control" id="recipient-input" placeholder="e.g. bob or UID-1002" required>
-              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
-                Registered Directory (Click to target):
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">
+                Directory Directory (Click to auto-fill):
               </div>
               <div class="recipient-pills" id="directory-pills">
                 <!-- Injected dynamically -->
@@ -793,11 +1064,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               <label>Select File to Transmit</label>
               <div class="file-drop-area" id="direct-drop-zone">
                 <input type="file" id="direct-file-input" required onchange="onDirectFileSelect()">
-                <div style="color:var(--primary-light); margin-bottom:8px;">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div style="color:var(--ios-blue); margin-bottom:10px;">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
-                <h4 id="direct-file-label">Click or Drag &amp; Drop file to send</h4>
-                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Streamed over TCP socket in 64 KB buffers directly to recipient mailbox</p>
+                <h4 id="direct-file-label" style="font-size:0.95rem; font-weight:700;">Click or Drag &amp; Drop file here</h4>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Streamed over multithreaded TCP socket in 64 KB binary buffers</p>
               </div>
             </div>
 
@@ -807,39 +1078,46 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           </form>
         </div>
 
-        <!-- How Dual Addressing Works Card -->
+        <!-- Architecture & Dual Addressing Guide Card -->
         <div class="card">
           <div class="card-header">
             <h2>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Dual Addressing &amp; Delivery Receipts
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Dual Addressing &amp; Receipts
             </h2>
           </div>
 
-          <div style="font-size:0.83rem; line-height:1.7; color:var(--text-muted);">
-            <p style="margin-bottom:12px;">
-              <strong style="color:#fff;">1. Dual Addressing (User ID or Username):</strong> You can address recipients interchangeably using either their custom Username (e.g. <code style="color:var(--accent-cyan);">bob</code>) or their auto-generated User ID (e.g. <code style="color:var(--accent-cyan);">UID-1002</code>).
+          <div style="font-size:0.85rem; line-height:1.75; color:var(--text-secondary);">
+            <p style="margin-bottom:14px;">
+              <strong style="color:var(--text-primary);">1. Dual Addressing (Username or User ID):</strong> Senders can target recipients using either their chosen Username (e.g. <code style="color:var(--ios-blue); font-weight:700;">bob</code>) or auto-generated User ID (e.g. <code style="color:var(--ios-blue); font-weight:700;">UID-1002</code>).
             </p>
-            <p style="margin-bottom:12px;">
-              <strong style="color:#fbbf24;">2. Level 1 Receipt (Server ACK):</strong> When the file is uploaded, the sender receives an instant server confirmation that the file reached the server mailbox: <code style="color:#fbbf24;">[PENDING: Waiting for recipient]</code>.
+            <p style="margin-bottom:14px;">
+              <strong style="color:#b45309;">2. Level 1 Receipt (Server Mailbox ACK):</strong> The sender receives an immediate confirmation that the file reached the server: <span class="status-badge status-pending">[PENDING: Waiting for recipient]</span>.
             </p>
-            <p style="margin-bottom:12px;">
-              <strong style="color:#34d399;">3. Level 2 Receipt (Recipient Download ACK):</strong> The second the recipient downloads the file from their inbox, the server records the exact timestamp and confirms delivery to the sender's outbox.
+            <p style="margin-bottom:14px;">
+              <strong style="color:#15803d;">3. Level 2 Receipt (Download Confirmed):</strong> When Bob downloads the file from his inbox, the server records the exact timestamp and confirms delivery to Alice: <span class="status-badge status-confirmed">[DELIVERED &amp; CONFIRMED]</span>.
             </p>
-            <p>
-              <strong style="color:var(--accent-cyan);">4. Pre-Seeded Dummy Accounts:</strong> Use <code style="color:#fff;">alice (UID-1001)</code> and <code style="color:#fff;">bob (UID-1002)</code> with password <code style="color:#fff;">password123</code> to test two-way transfers instantly!
-            </p>
+            <div style="background:rgba(255,255,255,0.7); border:1px solid rgba(0,0,0,0.06); padding:12px; border-radius:14px; margin-top:8px;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Pre-Seeded Test Accounts:</span>
+              <div style="margin-top:6px; font-size:0.8rem; display:flex; gap:14px;">
+                <div>👤 <strong>alice</strong> (<code style="color:var(--ios-blue);">UID-1001</code>)</div>
+                <div>👤 <strong>bob</strong> (<code style="color:var(--ios-blue);">UID-1002</code>)</div>
+              </div>
+              <div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">Default Password: <code>password123</code></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TAB 2: INBOX -->
+    <!-- ========================================================
+         TAB 2: INBOX
+         ======================================================== -->
     <div class="tab-content" id="tab-inbox">
       <div class="card">
         <div class="card-header">
           <h2>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-6l-2 3h-4l-2-3H2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-7z"/></svg>
             Incoming Files in Your Mailbox
           </h2>
           <button class="btn btn-secondary btn-sm" onclick="fetchInbox()">
@@ -860,19 +1138,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="inbox-tbody">
-              <tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:32px;">Loading inbox...</td></tr>
+              <tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:36px;">Loading inbox...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- TAB 3: OUTBOX & DELIVERY RECEIPTS -->
+    <!-- ========================================================
+         TAB 3: OUTBOX & DELIVERY RECEIPTS
+         ======================================================== -->
     <div class="tab-content" id="tab-outbox">
       <div class="card">
         <div class="card-header">
           <h2>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Sent Files &amp; Live Delivery Confirmation Tracker
           </h2>
           <button class="btn btn-secondary btn-sm" onclick="fetchOutbox()">
@@ -892,19 +1172,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="outbox-tbody">
-              <tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">Loading outbox...</td></tr>
+              <tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:36px;">Loading outbox...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- TAB 4: PUBLIC REPOSITORY -->
+    <!-- ========================================================
+         TAB 4: PUBLIC REPOSITORY
+         ======================================================== -->
     <div class="tab-content" id="tab-public">
       <div class="card">
         <div class="card-header">
           <h2>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
             Public Server Storage (General Repository)
           </h2>
           <button class="btn btn-secondary btn-sm" onclick="fetchPublicFiles()">
@@ -924,14 +1206,16 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="public-tbody">
-              <tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">Loading public files...</td></tr>
+              <tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:36px;">Loading public files...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <!-- Live Terminal Console -->
+    <!-- ========================================================
+         LIVE TCP SOCKET LOG & STREAM CONSOLE
+         ======================================================== -->
     <div class="terminal-card">
       <div class="terminal-header">
         <div class="terminal-dots">
@@ -939,14 +1223,17 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <span class="dot-yellow"></span>
           <span class="dot-green"></span>
         </div>
-        <div style="font-size:0.75rem; color:var(--text-faint);">Live TCP Socket Log &amp; Delivery Receipt Stream</div>
-        <div style="font-size:0.7rem; color:var(--accent-emerald);">● Streaming Active</div>
+        <div style="font-size:0.75rem; color:#94a3b8; font-weight:600;">Live TCP Socket Stream &amp; Packet Framing Console</div>
+        <div style="font-size:0.72rem; color:var(--ios-green); font-weight:700;">● Active Stream</div>
       </div>
       <div class="terminal-body" id="terminal-body">Connecting to live server log stream...</div>
     </div>
+
   </div>
 
-  <!-- AUTHENTICATION MODAL -->
+  <!-- ========================================================
+       iOS FROSTED SHEET MODAL (AUTHENTICATION)
+       ======================================================== -->
   <div class="modal-overlay" id="auth-modal">
     <div class="modal-card">
       <button class="modal-close" onclick="closeAuthModal()">&times;</button>
@@ -968,18 +1255,18 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
             <input type="password" class="input-control" id="login-password" placeholder="e.g. password123" required>
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
-            Log In
+            Log In to Account
           </button>
         </form>
 
-        <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
-          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Quick One-Click Test Accounts:</div>
-          <div style="display:flex; gap:8px;">
+        <div style="margin-top:22px; padding-top:16px; border-top:1px solid rgba(0,0,0,0.08);">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); margin-bottom:8px;">Instant Demo Accounts:</div>
+          <div style="display:flex; gap:10px;">
             <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('alice', 'password123'); closeAuthModal();">
-              Alice (UID-1001)
+              👤 Alice (UID-1001)
             </button>
             <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('bob', 'password123'); closeAuthModal();">
-              Bob (UID-1002)
+              👤 Bob (UID-1002)
             </button>
           </div>
         </div>
@@ -987,8 +1274,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
       <!-- VIEW: REGISTER -->
       <div class="auth-view" id="view-auth-register">
-        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5;">
-          Choose your unique username. An automatic, unique sequential <strong style="color:var(--accent-cyan);">User ID (e.g. UID-1003)</strong> will be generated immediately for you.
+        <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px; line-height:1.5;">
+          Enter your unique username. An automatic sequential <strong style="color:var(--ios-blue);">User ID (e.g. UID-1003)</strong> will be generated immediately for you.
         </div>
         <form onsubmit="handleAuthRegister(event)">
           <div class="form-group">
@@ -1027,7 +1314,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     function showToast(msg, isError = false) {
       const toast = document.getElementById('toast');
       toast.innerText = msg;
-      toast.style.borderColor = isError ? 'var(--accent-rose)' : 'var(--accent-emerald)';
+      toast.style.borderColor = isError ? 'var(--ios-red)' : 'var(--ios-green)';
+      toast.style.color = isError ? 'var(--ios-red)' : 'var(--text-primary)';
       toast.style.display = 'flex';
       setTimeout(() => { toast.style.display = 'none'; }, 4000);
     }
@@ -1039,15 +1327,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     }
 
     function updateActiveUserUI() {
+      // Header
       document.getElementById('header-avatar').innerText = currentUser.username.charAt(0).toUpperCase();
       document.getElementById('header-username').innerText = currentUser.username;
-      document.getElementById('header-uid').innerText = currentUser.user_id;
+      document.getElementById('header-uid').innerText = currentUser.user_id + ' 📋';
+
+      // Widgets
+      document.getElementById('widget-username').innerText = currentUser.username;
+      document.getElementById('widget-uid').innerText = currentUser.user_id;
+
+      // Transfer card
       document.getElementById('sender-display-name').innerText = currentUser.username;
       document.getElementById('sender-display-uid').innerText = currentUser.user_id;
 
-      // Update quick switch buttons
-      document.getElementById('btn-demo-alice').classList.toggle('active', currentUser.username.toLowerCase() === 'alice');
-      document.getElementById('btn-demo-bob').classList.toggle('active', currentUser.username.toLowerCase() === 'bob');
+      // Dynamic Island text
+      document.getElementById('island-text').innerText = `📡 ${currentUser.username} (${currentUser.user_id}) Connected &bull; TCP Socket Ready`;
 
       fetchDirectoryUsers();
       fetchInbox();
@@ -1072,6 +1366,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       } catch (err) {
         showToast(`Login error: ${err}`, true);
       }
+    }
+
+    function quickSelectRecipient(recipientName) {
+      document.getElementById('recipient-input').value = recipientName;
+      showToast(`Selected '${recipientName}' as recipient!`);
     }
 
     function openAuthModal(defaultTab = 'login') {
@@ -1145,7 +1444,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         const res = await fetch('/api/users');
         const data = await res.json();
         const pillsContainer = document.getElementById('directory-pills');
+        const speedDialContainer = document.getElementById('widget-speed-dial');
         pillsContainer.innerHTML = '';
+        speedDialContainer.innerHTML = '';
 
         if (!data.users || data.users.length === 0) {
           pillsContainer.innerHTML = '<span style="font-size:0.75rem; color:var(--text-faint);">No directory users</span>';
@@ -1154,21 +1455,34 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
         data.users.forEach(u => {
           if (u.username.toLowerCase() === currentUser.username.toLowerCase()) return;
+          
+          // Form suggestion pill
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'pill-btn';
-          btn.innerHTML = `👤 <strong>${u.username}</strong> <span class="pill-uid">(${u.user_id})</span>`;
+          btn.innerHTML = `👤 <strong>${u.username}</strong> <span class="pill-uid">${u.user_id}</span>`;
           btn.onclick = () => {
             document.getElementById('recipient-input').value = u.username;
             showToast(`Recipient set to '${u.username}' (${u.user_id})`);
           };
           pillsContainer.appendChild(btn);
+
+          // Widget Speed-Dial chip
+          const chip = document.createElement('span');
+          chip.className = 'widget-contact-chip';
+          chip.innerHTML = `👤 ${u.username}`;
+          chip.onclick = () => {
+            document.getElementById('recipient-input').value = u.username;
+            switchTab('two-way');
+            showToast(`Target set to '${u.username}'!`);
+          };
+          speedDialContainer.appendChild(chip);
         });
       } catch (err) {}
     }
 
     function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
       event.currentTarget.classList.add('active');
@@ -1207,6 +1521,9 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       btn.disabled = true;
       btn.innerText = `Transmitting '${file.name}' to ${recipient}...`;
 
+      // Update island
+      document.getElementById('island-text').innerText = `📡 Transmitting '${file.name}' (${formatBytes(file.size)}) to ${recipient}...`;
+
       const formData = new FormData();
       formData.append('sender', sender);
       formData.append('recipient', recipient);
@@ -1221,11 +1538,13 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         if (res.ok && data.status === 'OK') {
           showToast(`File sent! Queued on server for '${recipient}'. Level 1 Receipt recorded!`);
           document.getElementById('direct-send-form').reset();
-          document.getElementById('direct-file-label').innerText = 'Click or Drag & Drop file to send';
+          document.getElementById('direct-file-label').innerText = 'Click or Drag & Drop file here';
+          document.getElementById('island-text').innerText = `✓ '${file.name}' Queued on Server for ${recipient} &bull; Delivery Pending`;
           fetchOutbox();
           fetchLogs();
         } else {
           showToast(`Transfer failed: ${data.message || 'Error'}`, true);
+          document.getElementById('island-text').innerText = `[-] Transfer Failed: ${data.message || 'Error'}`;
         }
       } catch (err) {
         showToast(`Send error: ${err}`, true);
@@ -1246,9 +1565,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
         const inbox = data.inbox || [];
         document.getElementById('inbox-badge').innerText = inbox.length;
+        document.getElementById('widget-inbox-count').innerText = inbox.length;
 
         if (inbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:32px;">No incoming files for '${user}' (${currentUser.user_id})</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:36px;">No incoming files for '${user}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -1260,16 +1580,16 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
           tr.innerHTML = `
             <td>
-              <strong style="color:#fff;">${item.sender}</strong>
+              <strong style="color:var(--text-primary); font-size:0.9rem;">${item.sender}</strong>
               <span class="user-uid-pill" style="margin-left:6px;">${item.sender_uid || 'UID-????'}</span>
             </td>
             <td><strong>${item.filename}</strong></td>
-            <td style="font-family:var(--font-mono);">${formatBytes(item.size)}</td>
+            <td style="font-family:var(--font-mono); font-size:0.8rem;">${formatBytes(item.size)}</td>
             <td style="font-size:0.75rem; color:var(--text-muted);">${item.sent_at}</td>
             <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
             <td style="text-align:right;">
               <a href="/api/receive-inbox?transfer_id=${item.transfer_id}&user=${encodeURIComponent(user)}" class="btn btn-emerald btn-sm" download onclick="setTimeout(fetchInbox, 1000)">
-                Receive &amp; Confirm Receipt
+                Receive &amp; Confirm
               </a>
             </td>
           `;
@@ -1291,9 +1611,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
         const outbox = data.outbox || [];
         document.getElementById('outbox-badge').innerText = outbox.length;
+        document.getElementById('widget-outbox-count').innerText = outbox.length;
 
         if (outbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">No sent files from '${user}' (${currentUser.user_id})</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:36px;">No sent files from '${user}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -1307,11 +1628,11 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
           tr.innerHTML = `
             <td>
-              <strong style="color:#fff;">${item.recipient}</strong>
+              <strong style="color:var(--text-primary); font-size:0.9rem;">${item.recipient}</strong>
               <span class="user-uid-pill" style="margin-left:6px;">${item.recipient_uid || 'UID-????'}</span>
             </td>
             <td><strong>${item.filename}</strong></td>
-            <td style="font-family:var(--font-mono);">${formatBytes(item.size)}</td>
+            <td style="font-family:var(--font-mono); font-size:0.8rem;">${formatBytes(item.size)}</td>
             <td style="font-size:0.75rem; color:var(--text-muted);">${item.sent_at}</td>
             <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
           `;
@@ -1331,7 +1652,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         tbody.innerHTML = '';
 
         if (!data.files || data.files.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">No files currently in public storage.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:36px;">No files currently in public storage.</td></tr>`;
           return;
         }
 
@@ -1339,8 +1660,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td><strong>${f.name}</strong></td>
-            <td style="font-family:var(--font-mono);">${formatBytes(f.size)}</td>
-            <td>${f.type || 'file'}</td>
+            <td style="font-family:var(--font-mono); font-size:0.8rem;">${formatBytes(f.size)}</td>
+            <td style="font-size:0.8rem; color:var(--text-secondary); text-transform:uppercase;">${f.type || 'file'}</td>
             <td style="font-size:0.75rem; color:var(--text-muted);">${f.modified}</td>
             <td style="text-align:right;">
               <a href="/api/download?filename=${encodeURIComponent(f.name)}" class="btn btn-secondary btn-sm" download>
