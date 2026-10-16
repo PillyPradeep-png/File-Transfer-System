@@ -245,8 +245,8 @@ class TestFileTransferIntegration(unittest.TestCase):
             self.assertTrue(client_alice.connect())
             self.assertTrue(client_bob.connect())
 
-            self.assertTrue(client_alice.register("Alice"))
-            self.assertTrue(client_bob.register("Bob"))
+            self.assertTrue(client_alice.login("Alice", "password123") or client_alice.register("Alice", "password123"))
+            self.assertTrue(client_bob.login("Bob", "password123") or client_bob.register("Bob", "password123"))
 
             # 2. Alice sends a file to Bob
             alice_file = alice_path / "homework.py"
@@ -260,7 +260,7 @@ class TestFileTransferIntegration(unittest.TestCase):
             outbox_alice = client_alice.view_outbox()
             self.assertIsNotNone(outbox_alice)
             self.assertEqual(len(outbox_alice), 1)
-            self.assertEqual(outbox_alice[0]["recipient"], "Bob")
+            self.assertEqual(outbox_alice[0]["recipient"].lower(), "bob")
             self.assertEqual(outbox_alice[0]["status"], "PENDING_RECEIPT")
             self.assertIsNone(outbox_alice[0]["received_at"])
 
@@ -268,7 +268,7 @@ class TestFileTransferIntegration(unittest.TestCase):
             inbox_bob = client_bob.view_inbox()
             self.assertIsNotNone(inbox_bob)
             self.assertEqual(len(inbox_bob), 1)
-            self.assertEqual(inbox_bob[0]["sender"], "Alice")
+            self.assertEqual(inbox_bob[0]["sender"].lower(), "alice")
             self.assertEqual(inbox_bob[0]["filename"], "homework.py")
 
             tx_id = inbox_bob[0]["transfer_id"]
@@ -296,7 +296,7 @@ class TestFileTransferIntegration(unittest.TestCase):
             # Alice checks inbox and downloads Bob's reply
             inbox_alice = client_alice.view_inbox()
             self.assertEqual(len(inbox_alice), 1)
-            self.assertEqual(inbox_alice[0]["sender"], "Bob")
+            self.assertEqual(inbox_alice[0]["sender"].lower(), "bob")
 
             reply_tx_id = inbox_alice[0]["transfer_id"]
             alice_dl_ok = client_alice.download_inbox_file(transfer_id=reply_tx_id, show_progress=False)
@@ -441,5 +441,169 @@ class TestConcurrentClients(unittest.TestCase):
         self.assertEqual(len(results), 5)
 
 
+class TestUserAccountsAndTwoWayTransfer(unittest.TestCase):
+    """Integration tests for user registration, auto-generated User ID, and two-way transfers."""
+
+    def setUp(self) -> None:
+        self.server_dir = tempfile.TemporaryDirectory()
+        self.alice_dir = tempfile.TemporaryDirectory()
+        self.bob_dir = tempfile.TemporaryDirectory()
+        self.server_path = Path(self.server_dir.name)
+        self.alice_path = Path(self.alice_dir.name)
+        self.bob_path = Path(self.bob_dir.name)
+
+        self.port = get_free_port()
+        self.server = FileTransferServer(
+            host="127.0.0.1", port=self.port, storage_dir=self.server_path
+        )
+        self.server_thread = threading.Thread(target=self.server.start, daemon=True)
+        self.server_thread.start()
+        time.sleep(0.15)
+
+    def tearDown(self) -> None:
+        self.server.stop()
+        self.server_thread.join(timeout=2.0)
+        self.server_dir.cleanup()
+        self.alice_dir.cleanup()
+        self.bob_dir.cleanup()
+
+    def test_preseeded_dummy_accounts_and_login_by_uid_or_username(self) -> None:
+        """Verify pre-seeded dummy accounts Alice (UID-1001) and Bob (UID-1002) can login by UID or Username."""
+        client = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=self.alice_path)
+        self.assertTrue(client.connect())
+
+        # 1. Login with username "alice"
+        self.assertTrue(client.login("alice", "password123"))
+        self.assertEqual(client.username, "alice")
+        self.assertEqual(client.user_id, "UID-1001")
+
+        # 2. Login with user ID "UID-1002" (Bob)
+        self.assertTrue(client.login("UID-1002", "password123"))
+        self.assertEqual(client.username, "bob")
+        self.assertEqual(client.user_id, "UID-1002")
+
+        # 3. Invalid password fails
+        self.assertFalse(client.login("alice", "wrong_pass"))
+
+        # 4. Non-existent user fails
+        self.assertFalse(client.login("non_existent_user", "password123"))
+
+        client.disconnect()
+
+    def test_user_registration_auto_generates_unique_user_id(self) -> None:
+        """Verify registration generates an automatic unique sequential User ID and enforces unique username."""
+        client = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=self.alice_path)
+        self.assertTrue(client.connect())
+
+        # Register new unique user
+        uname = f"charlie_{int(time.time() * 1000) % 100000}"
+        ok = client.register(uname, "pass1234")
+        self.assertTrue(ok)
+        self.assertEqual(client.username, uname)
+        self.assertTrue(client.user_id.startswith("UID-"))
+        charlie_uid = client.user_id
+
+        # Verify user can now log in using the auto-generated User ID
+        self.assertTrue(client.login(charlie_uid, "pass1234"))
+        self.assertEqual(client.username, uname)
+
+        # Duplicate username registration must be rejected
+        self.assertFalse(client.register(uname, "pass1234"))
+        self.assertFalse(client.register(uname.upper(), "pass1234"))
+
+        client.disconnect()
+
+    def test_two_way_transfer_addressing_by_user_id_and_username(self) -> None:
+        """Verify two-way file exchange where recipient is targeted by User ID or Username, with ACKs."""
+        alice_client = FileTransferClient(
+            host="127.0.0.1", port=self.port, download_dir=self.alice_path
+        )
+        bob_client = FileTransferClient(
+            host="127.0.0.1", port=self.port, download_dir=self.bob_path
+        )
+        self.assertTrue(alice_client.connect())
+        self.assertTrue(bob_client.connect())
+
+        self.assertTrue(alice_client.login("alice", "password123"))
+        self.assertTrue(bob_client.login("bob", "password123"))
+
+        # Step 1: Alice sends a document addressed to Bob's User ID: "UID-1002"
+        alice_file = self.alice_path / "alice_project_report.txt"
+        alice_content = "Confidential OS Project Report from Alice to Bob UID-1002\n"
+        alice_file.write_text(alice_content, encoding="utf-8")
+
+        sent_ok = alice_client.send_file_to_user(
+            recipient="UID-1002",
+            local_path_str=str(alice_file),
+            show_progress=False,
+        )
+        self.assertTrue(sent_ok, "Alice sending to UID-1002 failed")
+
+        # Verify Alice's outbox initially shows delivery pending
+        alice_outbox = alice_client.view_outbox()
+        self.assertIsNotNone(alice_outbox)
+        self.assertEqual(len(alice_outbox), 1)
+        self.assertEqual(alice_outbox[0]["filename"], "alice_project_report.txt")
+        self.assertEqual(alice_outbox[0]["recipient"], "bob")
+        self.assertEqual(alice_outbox[0]["recipient_uid"], "UID-1002")
+        self.assertEqual(alice_outbox[0]["status"], "PENDING_RECEIPT")
+        transfer_id = alice_outbox[0]["transfer_id"]
+
+        # Step 2: Bob checks his inbox and downloads the file
+        bob_inbox = bob_client.view_inbox()
+        self.assertIsNotNone(bob_inbox)
+        self.assertEqual(len(bob_inbox), 1)
+        self.assertEqual(bob_inbox[0]["transfer_id"], transfer_id)
+        self.assertEqual(bob_inbox[0]["sender"], "alice")
+        self.assertEqual(bob_inbox[0]["sender_uid"], "UID-1001")
+
+        # Bob downloads and confirms receipt
+        recv_ok = bob_client.download_inbox_file(transfer_id=transfer_id, show_progress=False)
+        self.assertTrue(recv_ok, "Bob receiving inbox file failed")
+
+        downloaded_file = self.bob_path / "alice_project_report.txt"
+        self.assertTrue(downloaded_file.exists())
+        self.assertEqual(downloaded_file.read_text(encoding="utf-8"), alice_content)
+
+        # Step 3: Alice checks her outbox again -> status must now be confirmed (RECEIVED_BY_USER)!
+        updated_outbox = alice_client.view_outbox()
+        self.assertEqual(len(updated_outbox), 1)
+        self.assertEqual(updated_outbox[0]["status"], "RECEIVED_BY_USER")
+        self.assertIsNotNone(updated_outbox[0]["received_at"])
+
+        # Step 4: Two-way reply: Bob sends a response addressed to Alice by Username: "alice"
+        bob_reply = self.bob_path / "bob_review_feedback.txt"
+        bob_content = "Feedback received and approved by Bob!\n"
+        bob_reply.write_text(bob_content, encoding="utf-8")
+
+        reply_ok = bob_client.send_file_to_user(
+            recipient="alice",
+            local_path_str=str(bob_reply),
+            show_progress=False,
+        )
+        self.assertTrue(reply_ok, "Bob sending to 'alice' failed")
+
+        # Alice checks inbox and receives reply
+        alice_inbox = alice_client.view_inbox()
+        self.assertEqual(len(alice_inbox), 1)
+        self.assertEqual(alice_inbox[0]["filename"], "bob_review_feedback.txt")
+        self.assertEqual(alice_inbox[0]["sender"], "bob")
+        self.assertEqual(alice_inbox[0]["sender_uid"], "UID-1002")
+
+        recv_reply_ok = alice_client.download_inbox_file(
+            transfer_id=alice_inbox[0]["transfer_id"], show_progress=False
+        )
+        self.assertTrue(recv_reply_ok)
+
+        # Bob checks outbox -> confirmed delivery
+        bob_outbox = bob_client.view_outbox()
+        self.assertEqual(len(bob_outbox), 1)
+        self.assertEqual(bob_outbox[0]["status"], "RECEIVED_BY_USER")
+
+        alice_client.disconnect()
+        bob_client.disconnect()
+
+
 if __name__ == "__main__":
     unittest.main()
+

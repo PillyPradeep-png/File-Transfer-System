@@ -2,8 +2,8 @@
 
 Provides a modern, glassmorphic Web UI and REST API gateway that communicates
 with the underlying multithreaded TCP socket server (server.py) using pure
-Python standard library (http.server, socket, threading). Supports two-way transfers
-and end-to-end delivery confirmation receipts.
+Python standard library (http.server, socket, threading). Supports user accounts,
+login via Username or auto-generated unique User ID, two-way transfers, and end-to-end delivery confirmation receipts.
 """
 
 from email import policy
@@ -32,6 +32,7 @@ from config import (
     ensure_directories_exist,
     sanitize_filename,
 )
+from user_manager import user_manager
 
 WEB_PORT = 8080
 TCP_SERVER_HOST = DEFAULT_HOST
@@ -54,7 +55,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multithreaded Network File Transfer System | Two-Way Transfer & Delivery ACKs</title>
+  <title>Multithreaded Network File Transfer | User ID & Username Two-Way Exchange</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -62,10 +63,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     :root {
       --bg-base: #090d16;
       --bg-surface: #111827;
-      --bg-card: rgba(23, 32, 54, 0.7);
-      --bg-card-hover: rgba(30, 41, 69, 0.85);
-      --border-color: rgba(99, 102, 241, 0.18);
-      --border-glow: rgba(99, 102, 241, 0.4);
+      --bg-card: rgba(23, 32, 54, 0.75);
+      --bg-card-hover: rgba(30, 41, 69, 0.9);
+      --border-color: rgba(99, 102, 241, 0.2);
+      --border-glow: rgba(99, 102, 241, 0.45);
       --primary: #6366f1;
       --primary-light: #818cf8;
       --accent-cyan: #06b6d4;
@@ -82,8 +83,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
-                  radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 45%),
+      background: radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.1) 0%, transparent 45%),
+                  radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 45%),
                   var(--bg-base);
       color: var(--text-main);
       font-family: var(--font-sans);
@@ -164,23 +165,43 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       display: flex;
       align-items: center;
       gap: 12px;
-      background: rgba(17, 24, 39, 0.8);
+      background: rgba(17, 24, 39, 0.85);
       border: 1px solid var(--border-color);
       padding: 8px 16px;
-      border-radius: 12px;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     }
 
-    .user-select {
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid var(--primary-light);
-      color: white;
-      font-family: var(--font-sans);
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .user-meta-name {
       font-weight: 700;
-      font-size: 0.85rem;
-      padding: 5px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      outline: none;
+      font-size: 0.92rem;
+      color: #fff;
+    }
+
+    .user-uid-pill {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid var(--primary-light);
+      color: #c7d2fe;
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.04em;
     }
 
     .pulse-dot {
@@ -195,6 +216,48 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Demo Quick Switcher */
+    .quick-switch-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      padding: 8px 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+    }
+
+    .quick-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-btn:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .quick-btn.active {
+      background: var(--primary);
+      border-color: var(--primary-light);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
     }
 
     /* Tabs Bar */
@@ -255,7 +318,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     .grid-two {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.15fr 0.85fr;
       gap: 22px;
       margin-bottom: 22px;
     }
@@ -266,7 +329,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     .card {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border: 1px solid var(--border-color);
       border-radius: 18px;
       padding: 24px;
@@ -319,9 +382,43 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       border-color: var(--primary-light);
     }
 
+    /* Recipient Suggestion Pills */
+    .recipient-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pill-btn:hover {
+      background: rgba(6, 182, 212, 0.2);
+      border-color: var(--accent-cyan);
+      color: #fff;
+    }
+
+    .pill-uid {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-cyan);
+    }
+
     /* Upload box */
     .file-drop-area {
-      border: 2px dashed rgba(99, 102, 241, 0.3);
+      border: 2px dashed rgba(99, 102, 241, 0.35);
       border-radius: 14px;
       padding: 24px 16px;
       text-align: center;
@@ -351,21 +448,21 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 0.82rem;
-      font-weight: 600;
       font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
       cursor: pointer;
       transition: all 0.2s ease;
-      border: none;
-      outline: none;
+      text-decoration: none;
     }
 
     .btn-primary {
       background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
-      color: white;
-      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
     }
 
     .btn-primary:hover {
@@ -373,171 +470,274 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       transform: translateY(-1px);
     }
 
-    .btn-emerald {
-      background: linear-gradient(135deg, var(--accent-emerald) 0%, #059669 100%);
-      color: white;
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-    }
-
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.07);
-      color: var(--text-main);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid var(--border-color);
     }
 
     .btn-secondary:hover {
       background: rgba(255, 255, 255, 0.12);
     }
 
+    .btn-emerald {
+      background: linear-gradient(135deg, var(--accent-emerald) 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-emerald:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+
     .btn-sm {
       padding: 6px 12px;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       border-radius: 8px;
     }
 
     /* Tables */
     .table-container {
       overflow-x: auto;
-      max-height: 440px;
-      overflow-y: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      background: rgba(11, 17, 30, 0.5);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
+      font-size: 0.85rem;
       text-align: left;
-      font-size: 0.82rem;
     }
 
     th {
-      position: sticky;
-      top: 0;
-      background: var(--bg-surface);
+      background: rgba(17, 24, 39, 0.8);
       color: var(--text-muted);
       font-weight: 600;
-      text-transform: uppercase;
-      font-size: 0.7rem;
-      letter-spacing: 0.05em;
-      padding: 12px 14px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--border-color);
-      z-index: 10;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     td {
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       color: var(--text-main);
     }
 
-    tr:hover td { background: rgba(99, 102, 241, 0.04); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
-    /* Delivery Status Badges */
+    /* Status Badges */
     .status-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 4px 10px;
       border-radius: 9999px;
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       font-weight: 700;
+      letter-spacing: 0.02em;
     }
 
     .status-pending {
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.15);
       color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
     .status-confirmed {
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.15);
       color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
-    /* Terminal Console */
+    /* Live Terminal Console */
     .terminal-card {
-      background: #070a12;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #080c14;
+      border: 1px solid var(--border-color);
       border-radius: 16px;
-      padding: 18px 20px;
-      font-family: var(--font-mono);
       margin-top: 24px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
     }
 
     .terminal-header {
+      background: rgba(17, 24, 39, 0.9);
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-bottom: 12px;
-      margin-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid var(--border-color);
     }
 
     .terminal-dots { display: flex; gap: 6px; }
     .terminal-dots span { width: 10px; height: 10px; border-radius: 50%; }
     .dot-red { background: #ef4444; }
-    .dot-yellow { background: #eab308; }
-    .dot-green { background: #22c55e; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
 
     .terminal-body {
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 10px;
-      padding: 14px;
-      height: 190px;
-      overflow-y: auto;
-      font-size: 0.74rem;
-      line-height: 1.6;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
       color: #cbd5e1;
+      padding: 16px;
+      max-height: 180px;
+      overflow-y: auto;
       white-space: pre-wrap;
-      word-break: break-all;
+      line-height: 1.6;
     }
+
+    /* Login Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+      animation: modalFade 0.25s ease;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-card {
+      background: #111827;
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      padding: 30px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    .auth-tab-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+
+    .auth-tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .auth-tab-btn.active {
+      color: #fff;
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .auth-view { display: none; }
+    .auth-view.active { display: block; }
 
     /* Toast */
     #toast {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-glow);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid var(--accent-emerald);
+      color: #fff;
+      padding: 12px 20px;
       border-radius: 12px;
-      padding: 14px 20px;
       font-size: 0.85rem;
-      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
       display: none;
-      align-items: center;
-      gap: 10px;
-      z-index: 1000;
+      z-index: 2000;
+      animation: toastIn 0.3s ease;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Header -->
     <header>
       <div class="brand">
         <div class="brand-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
         </div>
         <div class="brand-titles">
           <h1>Multithreaded Network File Transfer</h1>
-          <p>Two-Way Peer File Exchange with Delivery Confirmation Receipts</p>
+          <p>User ID &amp; Username Two-Way Exchange with Live Delivery Receipts</p>
         </div>
       </div>
 
       <div class="header-user-badge">
-        <span style="font-size:0.8rem; color:var(--text-muted);">Active User:</span>
-        <select class="user-select" id="active-user-select" onchange="onUserChange()">
-          <option value="Alice">Alice</option>
-          <option value="Bob">Bob</option>
-          <option value="Charlie">Charlie</option>
-          <option value="Professor">Professor</option>
-        </select>
-        <span class="pulse-dot"></span>
-        <span style="font-size:0.75rem; color:var(--accent-emerald); font-weight:600;">Server Connected (127.0.0.1:5000)</span>
+        <div class="user-avatar" id="header-avatar">A</div>
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="user-meta-name" id="header-username">alice</span>
+            <span class="user-uid-pill" id="header-uid" title="Click to copy User ID" onclick="copyUid()" style="cursor:pointer;">UID-1001</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+            <span class="pulse-dot"></span>
+            <span style="font-size:0.72rem; color:var(--accent-emerald); font-weight:600;">TCP Socket Connected (:5000)</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openAuthModal()" style="margin-left:8px;">
+          Switch / Log In
+        </button>
       </div>
     </header>
+
+    <!-- Quick Switch Demo Bar -->
+    <div class="quick-switch-bar">
+      <span style="color:var(--text-muted); font-weight:600;">⚡ Instant Demo Account Switcher:</span>
+      <button class="quick-btn active" id="btn-demo-alice" onclick="quickLoginDemo('alice', 'password123')">
+        <span>👤 Alice</span>
+        <span style="color:var(--accent-cyan); font-family:var(--font-mono); font-size:0.72rem;">(UID-1001)</span>
+      </button>
+      <button class="quick-btn" id="btn-demo-bob" onclick="quickLoginDemo('bob', 'password123')">
+        <span>👤 Bob</span>
+        <span style="color:var(--accent-cyan); font-family:var(--font-mono); font-size:0.72rem;">(UID-1002)</span>
+      </button>
+      <button class="quick-btn" onclick="openAuthModal('register')">
+        <span>➕ Create New Account (Auto User ID)</span>
+      </button>
+    </div>
 
     <!-- Navigation Tabs -->
     <div class="tabs-nav">
@@ -552,7 +752,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       </button>
       <button class="tab-btn" onclick="switchTab('outbox')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-        Sent Outbox & Delivery ACKs
+        Sent Outbox &amp; Delivery ACKs
         <span class="badge-count" id="outbox-badge">0</span>
       </button>
       <button class="tab-btn" onclick="switchTab('public')">
@@ -568,14 +768,25 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <div class="card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Send File Directly to Another User
+              Send File Directly to Recipient
             </h2>
+          </div>
+
+          <div style="background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.83rem;">
+            Sending from: <strong style="color:#fff;" id="sender-display-name">alice</strong>
+            <span class="user-uid-pill" id="sender-display-uid" style="margin-left:6px;">UID-1001</span>
           </div>
 
           <form id="direct-send-form" onsubmit="handleDirectSend(event)">
             <div class="form-group">
-              <label>Target Recipient Username</label>
-              <input type="text" class="input-control" id="recipient-input" placeholder="e.g. Bob, Alice, Charlie..." required>
+              <label>Target Recipient (Enter Username OR User ID)</label>
+              <input type="text" class="input-control" id="recipient-input" placeholder="e.g. bob or UID-1002" required>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+                Registered Directory (Click to target):
+              </div>
+              <div class="recipient-pills" id="directory-pills">
+                <!-- Injected dynamically -->
+              </div>
             </div>
 
             <div class="form-group">
@@ -585,38 +796,38 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
                 <div style="color:var(--primary-light); margin-bottom:8px;">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
-                <h4 id="direct-file-label">Click or Drag & Drop file to send</h4>
+                <h4 id="direct-file-label">Click or Drag &amp; Drop file to send</h4>
                 <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Streamed over TCP socket in 64 KB buffers directly to recipient mailbox</p>
               </div>
             </div>
 
             <button type="submit" class="btn btn-primary" id="btn-direct-send" style="width:100%;">
-              Send File & Receive Delivery ACK
+              Send File &amp; Receive Delivery ACK
             </button>
           </form>
         </div>
 
-        <!-- How Delivery Confirmation Works Card -->
+        <!-- How Dual Addressing Works Card -->
         <div class="card">
           <div class="card-header">
             <h2>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              How Two-Way Transfer & Delivery ACKs Work
+              Dual Addressing &amp; Delivery Receipts
             </h2>
           </div>
 
           <div style="font-size:0.83rem; line-height:1.7; color:var(--text-muted);">
             <p style="margin-bottom:12px;">
-              <strong style="color:#fff;">1. Targeted Dispatch:</strong> When you send a file to a recipient (e.g. Alice &rarr; Bob), the file is received and locked in the server's designated mailbox.
+              <strong style="color:#fff;">1. Dual Addressing (User ID or Username):</strong> You can address recipients interchangeably using either their custom Username (e.g. <code style="color:var(--accent-cyan);">bob</code>) or their auto-generated User ID (e.g. <code style="color:var(--accent-cyan);">UID-1002</code>).
             </p>
             <p style="margin-bottom:12px;">
-              <strong style="color:#fbbf24;">2. Level 1 Receipt (Server ACK):</strong> You receive an instant confirmation that the file reached the server and is queued for the recipient. Status is marked as <code style="color:#fbbf24;">[PENDING: Waiting for recipient]</code>.
+              <strong style="color:#fbbf24;">2. Level 1 Receipt (Server ACK):</strong> When the file is uploaded, the sender receives an instant server confirmation that the file reached the server mailbox: <code style="color:#fbbf24;">[PENDING: Waiting for recipient]</code>.
             </p>
             <p style="margin-bottom:12px;">
-              <strong style="color:#34d399;">3. Level 2 Receipt (Recipient Download ACK):</strong> The moment Bob opens his Inbox and downloads the file, the server records the exact timestamp and confirms delivery.
+              <strong style="color:#34d399;">3. Level 2 Receipt (Recipient Download ACK):</strong> The second the recipient downloads the file from their inbox, the server records the exact timestamp and confirms delivery to the sender's outbox.
             </p>
             <p>
-              <strong style="color:var(--accent-cyan);">4. Two-Way Reply:</strong> Bob can then select Alice as the recipient and send files back to Alice, providing full two-way bidirectional file exchange!
+              <strong style="color:var(--accent-cyan);">4. Pre-Seeded Dummy Accounts:</strong> Use <code style="color:#fff;">alice (UID-1001)</code> and <code style="color:#fff;">bob (UID-1002)</code> with password <code style="color:#fff;">password123</code> to test two-way transfers instantly!
             </p>
           </div>
         </div>
@@ -640,7 +851,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <table>
             <thead>
               <tr>
-                <th>Sender</th>
+                <th>Sender (Username &amp; User ID)</th>
                 <th>Filename</th>
                 <th>Size</th>
                 <th>Sent At</th>
@@ -662,7 +873,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         <div class="card-header">
           <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Sent Files & Live Delivery Confirmation Tracker
+            Sent Files &amp; Live Delivery Confirmation Tracker
           </h2>
           <button class="btn btn-secondary btn-sm" onclick="fetchOutbox()">
             Refresh Outbox
@@ -673,7 +884,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           <table>
             <thead>
               <tr>
-                <th>Recipient</th>
+                <th>Recipient (Username &amp; User ID)</th>
                 <th>Filename</th>
                 <th>Size</th>
                 <th>Sent Timestamp</th>
@@ -735,9 +946,76 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- AUTHENTICATION MODAL -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+      
+      <div class="auth-tab-bar">
+        <button class="auth-tab-btn active" id="tab-auth-login" onclick="switchAuthTab('login')">Log In</button>
+        <button class="auth-tab-btn" id="tab-auth-register" onclick="switchAuthTab('register')">Create Account</button>
+      </div>
+
+      <!-- VIEW: LOGIN -->
+      <div class="auth-view active" id="view-auth-login">
+        <form onsubmit="handleAuthLogin(event)">
+          <div class="form-group">
+            <label>Username or User ID</label>
+            <input type="text" class="input-control" id="login-identifier" placeholder="e.g. alice or UID-1001" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" class="input-control" id="login-password" placeholder="e.g. password123" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
+            Log In
+          </button>
+        </form>
+
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Quick One-Click Test Accounts:</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('alice', 'password123'); closeAuthModal();">
+              Alice (UID-1001)
+            </button>
+            <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="quickLoginDemo('bob', 'password123'); closeAuthModal();">
+              Bob (UID-1002)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: REGISTER -->
+      <div class="auth-view" id="view-auth-register">
+        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:14px; line-height:1.5;">
+          Choose your unique username. An automatic, unique sequential <strong style="color:var(--accent-cyan);">User ID (e.g. UID-1003)</strong> will be generated immediately for you.
+        </div>
+        <form onsubmit="handleAuthRegister(event)">
+          <div class="form-group">
+            <label>Desired Unique Username</label>
+            <input type="text" class="input-control" id="reg-username" placeholder="e.g. charlie" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" class="input-control" id="reg-password" placeholder="At least 4 characters" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
+            Create Account &amp; Generate User ID
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div id="toast">Notification</div>
 
   <script>
+    // Current authenticated user state
+    let currentUser = {
+      username: 'alice',
+      user_id: 'UID-1001'
+    };
+
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 B';
       const k = 1024;
@@ -754,15 +1032,139 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
       setTimeout(() => { toast.style.display = 'none'; }, 4000);
     }
 
-    function getActiveUser() {
-      return document.getElementById('active-user-select').value;
+    function copyUid() {
+      navigator.clipboard.writeText(currentUser.user_id).then(() => {
+        showToast(`Copied ${currentUser.user_id} to clipboard!`);
+      });
     }
 
-    function onUserChange() {
-      const user = getActiveUser();
-      showToast(`Switched active user to '${user}'`);
+    function updateActiveUserUI() {
+      document.getElementById('header-avatar').innerText = currentUser.username.charAt(0).toUpperCase();
+      document.getElementById('header-username').innerText = currentUser.username;
+      document.getElementById('header-uid').innerText = currentUser.user_id;
+      document.getElementById('sender-display-name').innerText = currentUser.username;
+      document.getElementById('sender-display-uid').innerText = currentUser.user_id;
+
+      // Update quick switch buttons
+      document.getElementById('btn-demo-alice').classList.toggle('active', currentUser.username.toLowerCase() === 'alice');
+      document.getElementById('btn-demo-bob').classList.toggle('active', currentUser.username.toLowerCase() === 'bob');
+
+      fetchDirectoryUsers();
       fetchInbox();
       fetchOutbox();
+    }
+
+    async function quickLoginDemo(username, password) {
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: username, password: password })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'OK') {
+          currentUser = data.user;
+          showToast(`Logged in as '${currentUser.username}' (${currentUser.user_id})`);
+          updateActiveUserUI();
+        } else {
+          showToast(data.message || 'Login failed', true);
+        }
+      } catch (err) {
+        showToast(`Login error: ${err}`, true);
+      }
+    }
+
+    function openAuthModal(defaultTab = 'login') {
+      document.getElementById('auth-modal').classList.add('active');
+      switchAuthTab(defaultTab);
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.remove('active');
+    }
+
+    function switchAuthTab(tab) {
+      document.getElementById('tab-auth-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-auth-register').classList.toggle('active', tab === 'register');
+      document.getElementById('view-auth-login').classList.toggle('active', tab === 'login');
+      document.getElementById('view-auth-register').classList.toggle('active', tab === 'register');
+    }
+
+    async function handleAuthLogin(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'OK') {
+          currentUser = data.user;
+          showToast(`Welcome back, ${currentUser.username} (${currentUser.user_id})!`);
+          updateActiveUserUI();
+          closeAuthModal();
+        } else {
+          showToast(data.message || 'Invalid credentials', true);
+        }
+      } catch (err) {
+        showToast(`Login error: ${err}`, true);
+      }
+    }
+
+    async function handleAuthRegister(e) {
+      e.preventDefault();
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value.trim();
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'OK') {
+          currentUser = data.user;
+          showToast(`Account created! Assigned User ID: ${currentUser.user_id}`);
+          updateActiveUserUI();
+          closeAuthModal();
+        } else {
+          showToast(data.message || 'Registration failed', true);
+        }
+      } catch (err) {
+        showToast(`Registration error: ${err}`, true);
+      }
+    }
+
+    async function fetchDirectoryUsers() {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        const pillsContainer = document.getElementById('directory-pills');
+        pillsContainer.innerHTML = '';
+
+        if (!data.users || data.users.length === 0) {
+          pillsContainer.innerHTML = '<span style="font-size:0.75rem; color:var(--text-faint);">No directory users</span>';
+          return;
+        }
+
+        data.users.forEach(u => {
+          if (u.username.toLowerCase() === currentUser.username.toLowerCase()) return;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pill-btn';
+          btn.innerHTML = `👤 <strong>${u.username}</strong> <span class="pill-uid">(${u.user_id})</span>`;
+          btn.onclick = () => {
+            document.getElementById('recipient-input').value = u.username;
+            showToast(`Recipient set to '${u.username}' (${u.user_id})`);
+          };
+          pillsContainer.appendChild(btn);
+        });
+      } catch (err) {}
     }
 
     function switchTab(tabId) {
@@ -787,13 +1189,13 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     // Direct Two-Way File Send
     async function handleDirectSend(e) {
       e.preventDefault();
-      const sender = getActiveUser();
+      const sender = currentUser.username;
       const recipient = document.getElementById('recipient-input').value.trim();
       const fileInput = document.getElementById('direct-file-input');
       const btn = document.getElementById('btn-direct-send');
 
       if (!recipient) {
-        showToast('Please enter a recipient username.', true);
+        showToast('Please enter a recipient Username or User ID.', true);
         return;
       }
       if (fileInput.files.length === 0) {
@@ -835,7 +1237,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     // Fetch Inbox
     async function fetchInbox() {
-      const user = getActiveUser();
+      const user = currentUser.username;
       try {
         const res = await fetch(`/api/inbox?user=${encodeURIComponent(user)}`);
         const data = await res.json();
@@ -846,7 +1248,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         document.getElementById('inbox-badge').innerText = inbox.length;
 
         if (inbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:32px;">No incoming files for '${user}'</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-faint); padding:32px;">No incoming files for '${user}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -857,14 +1259,17 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           const badgeText = isPending ? 'NEW / UNREAD' : 'RECEIVED';
 
           tr.innerHTML = `
-            <td><strong style="color:#fff;">${item.sender}</strong></td>
+            <td>
+              <strong style="color:#fff;">${item.sender}</strong>
+              <span class="user-uid-pill" style="margin-left:6px;">${item.sender_uid || 'UID-????'}</span>
+            </td>
             <td><strong>${item.filename}</strong></td>
             <td style="font-family:var(--font-mono);">${formatBytes(item.size)}</td>
             <td style="font-size:0.75rem; color:var(--text-muted);">${item.sent_at}</td>
             <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
             <td style="text-align:right;">
               <a href="/api/receive-inbox?transfer_id=${item.transfer_id}&user=${encodeURIComponent(user)}" class="btn btn-emerald btn-sm" download onclick="setTimeout(fetchInbox, 1000)">
-                Receive & Confirm Receipt
+                Receive &amp; Confirm Receipt
               </a>
             </td>
           `;
@@ -877,7 +1282,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 
     // Fetch Outbox
     async function fetchOutbox() {
-      const user = getActiveUser();
+      const user = currentUser.username;
       try {
         const res = await fetch(`/api/outbox?user=${encodeURIComponent(user)}`);
         const data = await res.json();
@@ -888,7 +1293,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
         document.getElementById('outbox-badge').innerText = outbox.length;
 
         if (outbox.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">No sent files from '${user}'</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-faint); padding:32px;">No sent files from '${user}' (${currentUser.user_id})</td></tr>`;
           return;
         }
 
@@ -901,7 +1306,10 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
             : `SENT TO SERVER (Waiting for ${item.recipient} to download)`;
 
           tr.innerHTML = `
-            <td><strong style="color:#fff;">${item.recipient}</strong></td>
+            <td>
+              <strong style="color:#fff;">${item.recipient}</strong>
+              <span class="user-uid-pill" style="margin-left:6px;">${item.recipient_uid || 'UID-????'}</span>
+            </td>
             <td><strong>${item.filename}</strong></td>
             <td style="font-family:var(--font-mono);">${formatBytes(item.size)}</td>
             <td style="font-size:0.75rem; color:var(--text-muted);">${item.sent_at}</td>
@@ -956,8 +1364,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
     }
 
     // Initialize
-    fetchInbox();
-    fetchOutbox();
+    updateActiveUserUI();
     fetchPublicFiles();
     fetchLogs();
     setInterval(fetchLogs, 2000);
@@ -989,6 +1396,11 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(content)))
             self.end_headers()
             self.wfile.write(content)
+            return
+
+        elif path == "/api/users":
+            users = user_manager.list_users()
+            self._send_json({"status": "OK", "users": users})
             return
 
         elif path == "/api/inbox":
@@ -1155,11 +1567,65 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self) -> None:
-        """Handle POST requests for direct two-way transfers and uploads."""
+        """Handle POST requests for authentication, direct two-way transfers, and uploads."""
         parsed_url = urlparse(self.path)
         path = parsed_url.path
 
-        if path == "/api/send-to":
+        if path == "/api/login":
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length).decode("utf-8")
+                data = json.loads(body)
+            except Exception:
+                self._send_json({"status": "ERROR", "message": "Invalid JSON payload"}, status=400)
+                return
+
+            identifier = data.get("identifier", "").strip()
+            password = data.get("password", "").strip()
+            if not identifier or not password:
+                self._send_json(
+                    {"status": "ERROR", "message": "Username/User ID and password are required."},
+                    status=400,
+                )
+                return
+
+            user_rec = user_manager.authenticate(identifier, password)
+            if not user_rec:
+                self._send_json(
+                    {"status": "ERROR", "message": "Invalid Username/User ID or incorrect password."},
+                    status=401,
+                )
+                return
+
+            self._send_json({"status": "OK", "user": user_rec})
+            return
+
+        elif path == "/api/register":
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(content_length).decode("utf-8")
+                data = json.loads(body)
+            except Exception:
+                self._send_json({"status": "ERROR", "message": "Invalid JSON payload"}, status=400)
+                return
+
+            username = data.get("username", "").strip()
+            password = data.get("password", "").strip()
+            if not username or not password:
+                self._send_json(
+                    {"status": "ERROR", "message": "Username and password are required."},
+                    status=400,
+                )
+                return
+
+            try:
+                user_rec = user_manager.register(username, password)
+                self._send_json({"status": "OK", "user": user_rec})
+            except ValueError as err:
+                self._send_json({"status": "ERROR", "message": str(err)}, status=400)
+            return
+
+        elif path == "/api/send-to":
             content_type = self.headers.get("Content-Type", "")
             if not content_type.startswith("multipart/form-data"):
                 self._send_json({"error": "Expected multipart/form-data"}, status=400)
@@ -1216,8 +1682,13 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
                     return
 
                 try:
-                    client.username = sender
-                    client.register(sender)
+                    sender_rec = user_manager.find_user(sender)
+                    if sender_rec:
+                        client.username = sender_rec["username"]
+                        client.user_id = sender_rec["user_id"]
+                    else:
+                        client.username = sender
+
                     success = client.send_file_to_user(
                         recipient=recipient,
                         local_path_str=str(temp_upload_file),
@@ -1232,7 +1703,7 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
                         })
                     else:
                         self._send_json(
-                            {"status": "ERROR", "message": "Failed to send file over TCP."},
+                            {"status": "ERROR", "message": f"Failed to send file over TCP to '{recipient}'."},
                             status=500,
                         )
                 finally:

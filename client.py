@@ -26,6 +26,7 @@ from protocol import (
     CMD_DOWNLOAD,
     CMD_INBOX,
     CMD_LIST,
+    CMD_LOGIN,
     CMD_OUTBOX,
     CMD_QUIT,
     CMD_RECEIVE_INBOX,
@@ -99,19 +100,27 @@ class FileTransferClient:
         self.sock: Optional[socket.socket] = None
         self.is_connected = False
         self.username: Optional[str] = None
+        self.user_id: Optional[str] = None
 
-    def register(self, username: str) -> bool:
-        """Register client under a given username for direct two-way transfers."""
+    def register(self, username: str, password: str = "password123") -> bool:
+        """Create new account with username and password; receives auto-generated unique User ID."""
         if not self.is_connected or not self.sock:
             print("[-] Error: You must connect to the server first.")
             return False
 
         try:
-            send_message(self.sock, {"command": CMD_REGISTER, "username": username})
+            send_message(
+                self.sock,
+                {"command": CMD_REGISTER, "username": username, "password": password},
+            )
             resp = recv_message(self.sock)
             if resp.get("status") == "OK":
-                self.username = resp.get("data", {}).get("username", username)
-                print(f"[+] Successfully registered as '{self.username}' on the network.")
+                data = resp.get("data", {})
+                self.username = data.get("username", username)
+                self.user_id = data.get("user_id")
+                print(f"[+] Account registered successfully!")
+                print(f"[+] Username: {self.username}")
+                print(f"[+] Unique User ID: {self.user_id}")
                 return True
             else:
                 print(f"[-] Registration failed: {resp.get('message')}")
@@ -120,8 +129,34 @@ class FileTransferClient:
             print(f"[-] Registration error: {err}")
             return False
 
-    def list_online_users(self) -> Optional[List[str]]:
-        """Query and display list of currently active users."""
+    def login(self, identifier: str, password: str = "password123") -> bool:
+        """Authenticate using either Username or unique User ID."""
+        if not self.is_connected or not self.sock:
+            print("[-] Error: You must connect to the server first.")
+            return False
+
+        try:
+            send_message(
+                self.sock,
+                {"command": CMD_LOGIN, "identifier": identifier, "password": password},
+            )
+            resp = recv_message(self.sock)
+            if resp.get("status") == "OK":
+                data = resp.get("data", {})
+                self.username = data.get("username", identifier)
+                self.user_id = data.get("user_id")
+                print(f"[+] Logged in successfully!")
+                print(f"[+] Active User: {self.username} (User ID: {self.user_id})")
+                return True
+            else:
+                print(f"[-] Login failed: {resp.get('message')}")
+                return False
+        except Exception as err:
+            print(f"[-] Login error: {err}")
+            return False
+
+    def list_online_users(self) -> Optional[List[Dict[str, Any]]]:
+        """Query and display list of users with both Username and User ID."""
         if not self.is_connected or not self.sock:
             print("[-] Error: You must connect to the server first.")
             return None
@@ -134,16 +169,19 @@ class FileTransferClient:
                 return None
 
             users = resp.get("data", {}).get("users", [])
-            print("\n" + "=" * 40)
-            print("ONLINE NETWORK USERS")
-            print("=" * 40)
+            print("\n" + "=" * 55)
+            print(f"{'USER ID':<14} {'USERNAME':<20} {'STATUS':<15}")
+            print("-" * 55)
             if not users:
-                print(" (No other users currently registered)")
+                print(" (No registered users found)")
             else:
                 for u in users:
-                    is_you = " (You)" if u == self.username else ""
-                    print(f" • {u}{is_you}")
-            print("=" * 40 + "\n")
+                    uid = u.get("user_id", "N/A")
+                    uname = u.get("username", "unknown")
+                    is_you = " (You)" if (uname == self.username or uid == self.user_id) else ""
+                    online_badge = "Online" if u.get("is_online") else "Offline"
+                    print(f"{uid:<14} {uname + is_you:<20} {online_badge:<15}")
+            print("=" * 55 + "\n")
             return users
         except Exception as err:
             print(f"[-] Error fetching users: {err}")

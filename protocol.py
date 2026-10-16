@@ -29,9 +29,10 @@ CMD_DOWNLOAD = "DOWNLOAD"
 CMD_QUIT = "QUIT"
 
 # Two-way user-to-user transfer operations & delivery confirmation
-CMD_REGISTER = "REGISTER"          # Bind client connection to a username (e.g. Alice, Bob)
-CMD_USERS = "USERS"                # Retrieve list of online/known users
-CMD_SEND_TO = "SEND_TO"            # Send a file directly targeted to a specific recipient
+CMD_REGISTER = "REGISTER"          # Sign up with username & password -> receives auto-generated unique User ID
+CMD_LOGIN = "LOGIN"                # Authenticate using either Username or User ID + password
+CMD_USERS = "USERS"                # Retrieve list of online/known users with User IDs
+CMD_SEND_TO = "SEND_TO"            # Send a file directly targeted to a recipient (Username or User ID)
 CMD_INBOX = "INBOX"                # Query incoming files sent to current user
 CMD_OUTBOX = "OUTBOX"              # Query sent files with end-to-end delivery receipts
 CMD_RECEIVE_INBOX = "RECEIVE_INBOX" # Download a file from inbox & trigger recipient ACK

@@ -64,6 +64,15 @@ Standard raw TCP sockets provide an unstructured byte stream without message bou
 
 ## 4. Features
 
+* **User Authentication & Auto-Generated Unique User IDs**: Secure user registration with PBKDF2-HMAC-SHA256 password hashing. Unique user-chosen Username + auto-generated sequential User ID (e.g. `UID-1001`, `UID-1002`, `UID-1003`).
+* **Dual Addressing (User ID or Username)**: Direct two-way file transfers addressable interchangeably by either custom Username (e.g. `bob`) or unique User ID (e.g. `UID-1002`).
+* **Pre-Seeded Dummy Test Accounts**: Out-of-the-box accounts pre-configured for instant demonstration:
+  - **Alice**: Username: `alice`, User ID: `UID-1001`, Password: `password123`
+  - **Bob**: Username: `bob`, User ID: `UID-1002`, Password: `password123`
+* **Two-Way File Transfers & Two-Level Delivery Confirmation**:
+  - **Level 1 (Server ACK)**: Immediate acknowledgment confirming the file has reached the server and is queued in the recipient's mailbox (`[PENDING: Waiting for recipient]`).
+  - **Level 2 (Download Receipt)**: Real-time notification recorded with exact timestamp the moment the recipient downloads the file (`[CONFIRMED: RECEIVED BY user at YYYY-MM-DD HH:MM:SS]`).
+* **Modern Glassmorphic Web Dashboard**: Interactive browser UI at `http://127.0.0.1:8080` with one-click demo login buttons, live directory pills, drag-and-drop uploads, and real-time TCP socket streaming logs.
 * **Multi-Client Concurrency**: Each incoming client connection is serviced by an independent worker thread.
 * **Granular Concurrency Control**: Per-file lock management (`FileLockManager`) serializes conflicting operations on the same filename while allowing transfers of different files in full parallel throughput.
 * **Chunked Streaming I/O**: Files are streamed in 64 KB buffers, enabling transfers of arbitrarily large files (gigabytes) with minimal RAM utilization.
@@ -458,8 +467,7 @@ OK
 
 ## 21. Known Limitations
 
-* **Plaintext Transport**: TCP stream is unencrypted. Anyone with access to the local network or a packet analyzer (e.g., Wireshark) can inspect transmitted data.
-* **Authentication**: There is no user authentication or access control list (ACL). Any client on the network can list, upload, and download files.
+* **Plaintext Transport**: TCP stream is unencrypted. Anyone with access to the local network or a packet analyzer (e.g., Wireshark) can inspect transmitted data. (TLS wrapper can be added for production deployments).
 * **Resume Interrupted Downloads**: If a connection drops halfway, the partial file is safely cleaned up, but byte-range resuming (like HTTP `Range: bytes=X-Y`) is not yet implemented.
 
 ---

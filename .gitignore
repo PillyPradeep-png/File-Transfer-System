@@ -11,6 +11,8 @@ server_storage/*
 !server_storage/.gitkeep
 downloads/*
 !downloads/.gitkeep
+mailbox/*
+!mailbox/.gitkeep
 
 # IDE and OS specific files
 .vscode/
