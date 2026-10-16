@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+logs/*.log
+
+# Operational transfer directories (keep .gitkeep)
+server_storage/*
+!server_storage/.gitkeep
+downloads/*
+!downloads/.gitkeep
+
+# IDE and OS specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Scratch and temporary testing files
+*.part
+*.tmp

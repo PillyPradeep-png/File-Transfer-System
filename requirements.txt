@@ -1,0 +1,10 @@
+# Multithreaded Network File Transfer System
+# Requires Python >= 3.8
+# Standard library dependencies only:
+# - socket
+# - threading
+# - struct
+# - json
+# - logging
+# - pathlib
+# - unittest
