@@ -1,6 +1,6 @@
-"""Multithreaded Network File Transfer Server.
+"""Network File Transfer Server.
 
-Implements a multithreaded TCP server where each connected client is handled
+Implements a high-concurrency TCP server where each connected client is handled
 in an independent thread. Supports concurrent file uploads, downloads,
 file listings, and safe filename validation.
 """
@@ -21,6 +21,7 @@ import uuid
 from config import (
     DEFAULT_HOST,
     DEFAULT_PORT,
+    DEFAULT_SERVER_BIND_HOST,
     LISTEN_BACKLOG,
     LOGS_DIR,
     MAILBOX_DIR,
@@ -28,6 +29,7 @@ from config import (
     SERVER_STORAGE_DIR,
     SOCKET_TIMEOUT,
     ensure_directories_exist,
+    get_lan_ip,
     is_safe_path,
     sanitize_filename,
 )
@@ -93,7 +95,7 @@ class FileLockManager:
 
 
 class FileTransferServer:
-    """High-performance multithreaded TCP File Transfer Server."""
+    """High-performance concurrent TCP File Transfer Server."""
 
     def __init__(
         self,
@@ -131,11 +133,14 @@ class FileTransferServer:
             self.server_socket.listen(LISTEN_BACKLOG)
             # Short timeout on listening socket allows checking self.is_running periodically
             self.server_socket.settimeout(1.0)
+            lan_ip = get_lan_ip()
             self.logger.info(
                 "============================================================"
             )
-            self.logger.info("Multithreaded Network File Transfer Server Started")
+            self.logger.info("Network File Transfer Server Started")
             self.logger.info(f"Listening on TCP: {self.host}:{self.port}")
+            if self.host in ("0.0.0.0", "") and lan_ip != "127.0.0.1":
+                self.logger.info(f"LAN Access Address: {lan_ip}:{self.port}")
             self.logger.info(f"Storage Directory: {self.storage_dir}")
             self.logger.info(
                 "============================================================"
@@ -988,13 +993,13 @@ def setup_server_logging(log_to_file: bool = True) -> None:
 def main() -> None:
     """Command-line entrypoint for the file transfer server."""
     parser = argparse.ArgumentParser(
-        description="Multithreaded Network File Transfer Server (TCP/IP)"
+        description="Network File Transfer Server (TCP/IP)"
     )
     parser.add_argument(
         "--host",
         type=str,
-        default=DEFAULT_HOST,
-        help=f"IP address to bind the server to (default: {DEFAULT_HOST}. Use 0.0.0.0 for LAN).",
+        default=DEFAULT_SERVER_BIND_HOST,
+        help=f"IP address to bind the server to (default: {DEFAULT_SERVER_BIND_HOST} for LAN & localhost).",
     )
     parser.add_argument(
         "--port",

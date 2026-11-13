@@ -1,4 +1,4 @@
-"""Web Interface & HTTP-to-TCP Bridge for Multithreaded File Transfer System.
+"""Web Interface & HTTP-to-TCP Bridge for Network File Transfer System.
 
 Features an Apple iPhone iOS Glassmorphism (Frosted Glass / Cupertino) UI,
 interactive iOS widgets, live Dynamic Island activity bar, user accounts with
@@ -12,6 +12,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+import argparse
 import json
 import mimetypes
 import os
@@ -27,9 +28,11 @@ from config import (
     CLIENT_DOWNLOAD_DIR,
     DEFAULT_HOST,
     DEFAULT_PORT,
+    DEFAULT_SERVER_BIND_HOST,
     LOGS_DIR,
     SERVER_STORAGE_DIR,
     ensure_directories_exist,
+    get_lan_ip,
     sanitize_filename,
 )
 from user_manager import user_manager
@@ -55,7 +58,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multithreaded Network File Transfer | iOS Glass & Widgets</title>
+  <title>Network File Transfer | iOS Glass & Widgets</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -956,8 +959,8 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
           </div>
         </div>
         <div>
-          <div class="widget-val-lg" style="color:var(--ios-green);">127.0.0.1:5000</div>
-          <div class="widget-subtext">Multithreaded Server Online</div>
+          <div class="widget-val-lg" style="color:var(--ios-green);">Port 5000 Online</div>
+          <div class="widget-subtext">Server Online</div>
         </div>
         <div style="font-size:0.72rem; color:var(--text-muted); margin-top:12px;">
           Buffer: <strong>64 KB Chunks</strong> &bull; Latency: <strong>&lt; 1 ms</strong>
@@ -1067,7 +1070,7 @@ HTML_DASHBOARD = r"""<!DOCTYPE html>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
                 <h4 id="direct-file-label" style="font-size:0.95rem; font-weight:700;">Click or Drag &amp; Drop file here</h4>
-                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Streamed over multithreaded TCP socket in 64 KB binary buffers</p>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Streamed over concurrent TCP socket in 64 KB binary buffers</p>
               </div>
             </div>
 
@@ -2076,12 +2079,19 @@ class WebGatewayHandler(BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-def start_web_server(port: int = WEB_PORT) -> None:
-    """Run multithreaded HTTP web server."""
+def start_web_server(host: str = DEFAULT_SERVER_BIND_HOST, port: int = WEB_PORT) -> None:
+    """Run HTTP web server accessible locally and across the LAN."""
     ensure_directories_exist()
-    server_address = ("127.0.0.1", port)
+    server_address = (host, port)
     httpd = ThreadingHTTPServer(server_address, WebGatewayHandler)
-    print(f"[+] Web Interface running at: http://127.0.0.1:{port}")
+    lan_ip = get_lan_ip()
+    print("=" * 64)
+    print("  NETWORK FILE TRANSFER - WEB DASHBOARD ONLINE")
+    print("=" * 64)
+    print(f"  • Local Computer:   http://127.0.0.1:{port}")
+    if lan_ip != "127.0.0.1":
+        print(f"  • Mobile / Same Wi-Fi: http://{lan_ip}:{port}")
+    print("=" * 64)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -2090,4 +2100,18 @@ def start_web_server(port: int = WEB_PORT) -> None:
 
 
 if __name__ == "__main__":
-    start_web_server()
+    parser = argparse.ArgumentParser(description="Web Interface & HTTP-to-TCP Bridge")
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=DEFAULT_SERVER_BIND_HOST,
+        help=f"Host address to bind HTTP server to (default: {DEFAULT_SERVER_BIND_HOST} for LAN & localhost)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=WEB_PORT,
+        help=f"Port number for HTTP server (default: {WEB_PORT})",
+    )
+    args = parser.parse_args()
+    start_web_server(host=args.host, port=args.port)

@@ -1,4 +1,4 @@
-"""Configuration parameters for the Multithreaded Network File Transfer System.
+"""Configuration parameters for the Network File Transfer System.
 
 Defines default network addresses, ports, chunk sizes, buffer limits,
 timeout intervals, and directory storage locations.
@@ -10,8 +10,22 @@ import re
 
 # Network settings
 DEFAULT_HOST: str = "127.0.0.1"
+DEFAULT_SERVER_BIND_HOST: str = "0.0.0.0"
 DEFAULT_PORT: int = 5000
 LISTEN_BACKLOG: int = 50
+
+
+def get_lan_ip() -> str:
+    """Detect LAN IP address of this machine for local network access."""
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+
 
 # Transfer buffer and protocol constraints
 BUFFER_SIZE: int = 64 * 1024  # 64 KB chunk size for streaming file I/O

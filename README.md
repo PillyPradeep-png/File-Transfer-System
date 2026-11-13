@@ -1,6 +1,6 @@
-# Multithreaded Network File Transfer System (TCP/IP)
+# Network File Transfer System (TCP/IP)
 
-A high-performance, concurrent, client-server file transfer system implemented in Python using native TCP sockets and multithreading. Designed for academic demonstration of Computer Networks, Operating Systems, concurrent programming, and synchronization.
+A high-performance, concurrent, client-server file transfer system implemented in Python using native TCP sockets and thread synchronization. Designed for academic demonstration of Computer Networks, Operating Systems, concurrent programming, and synchronization.
 
 ---
 
@@ -15,7 +15,7 @@ A high-performance, concurrent, client-server file transfer system implemented i
 7. [Project Directory Structure](#7-project-directory-structure)
 8. [Explanation of TCP Sockets](#8-explanation-of-tcp-sockets)
 9. [Explanation of the Client-Server Model](#9-explanation-of-the-client-server-model)
-10. [Explanation of Multithreading](#10-explanation-of-multithreading)
+10. [Explanation of Concurrency & Worker Threads](#10-explanation-of-concurrency--worker-threads)
 11. [Explanation of Concurrency and Synchronization](#11-explanation-of-concurrency-and-synchronization)
 12. [Application-Level Protocol Specification](#12-application-level-protocol-specification)
 13. [Installation & Requirements](#13-installation--requirements)
@@ -37,7 +37,7 @@ A high-performance, concurrent, client-server file transfer system implemented i
 
 In networked environments, file transfer is a fundamental service. Real-world systems like FTP, HTTP/2, and cloud storage gateways must handle multiple client connections simultaneously without allowing a slow or stalled client to starve other clients of I/O resources.
 
-This project delivers a multithreaded network file transfer application built strictly on standard library Python (`socket` and `threading`). It provides reliable chunked transfers, an application-level message-framing protocol, granular per-file concurrency synchronization, and a clean command-line user interface.
+This project delivers a concurrent network file transfer application built strictly on standard library Python (`socket` and `threading`). It provides reliable chunked transfers, an application-level message-framing protocol, granular per-file concurrency synchronization, and a clean command-line user interface.
 
 ---
 
@@ -53,7 +53,7 @@ Standard raw TCP sockets provide an unstructured byte stream without message bou
 
 ## 3. Objectives
 
-* Build a multi-client, multithreaded TCP file transfer server.
+* Build a multi-client, concurrent TCP file transfer server.
 * Design an extensible binary header + JSON control protocol on top of TCP.
 * Stream files in configurable 64 KB chunks rather than loading entire files into memory.
 * Provide dynamic terminal progress reporting (bytes transferred, percentage, speed in MB/s).
@@ -132,7 +132,7 @@ Standard raw TCP sockets provide an unstructured byte stream without message bou
 ## 7. Project Directory Structure
 
 ```
-multithreaded-file-transfer/
+network-file-transfer/
 ├── server.py                # Server socket engine & per-client thread handlers
 ├── client.py                # Interactive CLI menu & client transfer implementation
 ├── web_server.py            # Modern Web Dashboard & HTTP-to-TCP socket bridge
@@ -173,11 +173,11 @@ The system follows an asymmetric client-server distributed architecture:
 
 ---
 
-## 10. Explanation of Multithreading
+## 10. Explanation of Concurrency & Worker Threads
 
 In an operating system, a **Process** represents an executing program with its own private address space and resources. A **Thread** is the smallest unit of execution within a process that can be scheduled by the OS kernel. Multiple threads within the same process share the same memory space, code segments, and open file descriptors.
 
-### Why Multithreading in This Server?
+### Why Concurrency in This Server?
 If a server handled clients in a single-threaded sequential loop, a client uploading a 2 GB video would block the entire server for several minutes. No other client could connect or list files.
 
 By dedicating an independent `threading.Thread` to each client connection:
@@ -300,7 +300,7 @@ py client.py
 You will see the main menu:
 ```
 ========================================
-  MULTITHREADED NETWORK FILE TRANSFER
+      NETWORK FILE TRANSFER SYSTEM
 ========================================
 1. Connect to Server
 2. List Server Files
@@ -330,7 +330,7 @@ py client.py --host 127.0.0.1 --port 5000 --download "my_file.pdf"
 
 ## 16. How to Start Multiple Clients (Concurrency Demo)
 
-To observe multithreading and concurrency in real time:
+To observe real-time concurrency and client handling:
 
 1. **Terminal 1**: Start the server:
    ```bash

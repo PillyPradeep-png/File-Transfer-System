@@ -1,4 +1,4 @@
-"""End-to-end integration and concurrency tests for Multithreaded File Transfer."""
+"""End-to-end integration and concurrency tests for Network File Transfer."""
 
 from pathlib import Path
 import hashlib
@@ -57,7 +57,7 @@ class TestFileTransferIntegration(unittest.TestCase):
     def test_upload_small_text_file(self) -> None:
         """Verify uploading a small text file creates identical copy on server."""
         test_file = self.client_path / "hello.txt"
-        test_content = "Hello, Academic Multithreaded Network File Transfer System!\n"
+        test_content = "Hello, Academic Network File Transfer System!\n"
         test_file.write_text(test_content, encoding="utf-8")
 
         client = FileTransferClient(host="127.0.0.1", port=self.port, download_dir=self.client_path)

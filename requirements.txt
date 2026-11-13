@@ -1,4 +1,4 @@
-# Multithreaded Network File Transfer System
+# Network File Transfer System
 # Requires Python >= 3.8
 # Standard library dependencies only:
 # - socket

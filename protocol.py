@@ -1,4 +1,4 @@
-"""TCP Protocol implementation for the Multithreaded Network File Transfer System.
+"""TCP Protocol implementation for the Network File Transfer System.
 
 Defines message framing (4-byte length prefix + UTF-8 JSON payload),
 exact byte transmission helpers, streaming chunked file I/O, progress tracking,

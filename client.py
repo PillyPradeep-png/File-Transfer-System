@@ -1,4 +1,4 @@
-"""Multithreaded Network File Transfer Client.
+"""Network File Transfer Client.
 
 Provides an interactive CLI menu and programmatic client class to connect,
 list server files, upload files with progress tracking, download files safely,
@@ -689,7 +689,7 @@ def run_interactive_cli() -> None:
 
             menu = f"""
 ============================================================
-           MULTITHREADED NETWORK FILE TRANSFER
+           NETWORK FILE TRANSFER SYSTEM
            Status: {user_status}
 ============================================================
  [ TWO-WAY PEER-TO-PEER TRANSFERS WITH DELIVERY ACKS ]
@@ -829,7 +829,7 @@ def run_interactive_cli() -> None:
 def main() -> None:
     """CLI script entry point."""
     parser = argparse.ArgumentParser(
-        description="Multithreaded Network File Transfer Client (Two-Way Transfer & Delivery ACKs)"
+        description="Network File Transfer Client (Two-Way Transfer & Delivery ACKs)"
     )
     parser.add_argument(
         "--host",
